@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # Paso 06 · Reporte de las metricas de Angel para los aglomerados, en un solo markdown.
 # Reemplaza al reporte de 13 ciudades escrito a mano (outputs/reports/REPORTE_angel.md):
-# este se genera entero desde resumen.csv con lib/resultados.R, igual que el sitio
-# (08_sitio.R), asi que ningun numero se escribe a mano.
+# este se genera entero desde resumen.csv con lib/resultados.R, asi que ningun numero se
+# escribe a mano.
 #
 # Salida, pensada para leerse en GitHub o en la vista previa de VS Code:
 #   reporte/REPORTE_angel.md

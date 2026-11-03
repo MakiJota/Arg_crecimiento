@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Funciones comunes del reporte (06_reporte.R) y del sitio (08_sitio.R): leen los
+# Funciones de las salidas de resultados (el reporte, 06_reporte.R): leen los
 # resultados de Angel, calculan lo que se publica, dibujan graficos y mapas y arman el
 # texto compartido. Se carga con source(); no se corre sola.
 #
@@ -310,8 +310,8 @@ mapas <- function(r, dir) {
 
 
 # ---- texto compartido --------------------------------------------------------------
-# img(ruta, alt) y enlace(slug) los pone quien llama: el sitio usa rutas de Jekyll y
-# paginas; el reporte, rutas relativas y anclas.
+# img(ruta, alt) y enlace(slug) los pone quien llama: cada salida resuelve sus rutas y
+# enlaces (el reporte, rutas relativas y anclas).
 
 resumen_md <- function(r) {
   fi <- r$fichas
