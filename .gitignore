@@ -1,0 +1,19 @@
+# Downloads and derived rasters: rebuilt by the scripts, never versioned
+raw/*
+!raw/boundaries/
+outputs/
+
+# Local material
+literature/
+notes/
+CLAUDE.md
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS
+desktop.ini
+Thumbs.db
+.DS_Store
