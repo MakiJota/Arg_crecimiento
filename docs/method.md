@@ -15,6 +15,7 @@ nav_order: 2
 - **Agglomerate perimeters** (`07_limites_aglomerados.R`): the analysis perimeter of the *Bolsones de pobreza* project, i.e. the EPH agglomerate plus the continuous 2022 city that spills over it, simplified to about 200 m.
 - **Boxes** (`cajas.md`): the perimeter's bounding box plus 10 km on every side, so the 1 km² neighbourhood never runs out of data at the edge of the city. Salta and Gran Tucumán use hand-drawn boxes that also cover the whole perimeter.
 - Each box is reprojected to its UTM zone at 30 m (nearest neighbour) so that distances are metric.
+- **Grid**: 17 agglomerations were cut on the grid of their Landsat composite (`04_angel_atlas.R`) and 14 directly with their box (`04b_angel_sin_landsat.R`). Landsat is only a grid template, never an input to the classes, and the composite has the same box, so the two grids differ by a fraction of a pixel at the edge. On the box grid: Gran Buenos Aires, Gran Mendoza, Gran Paraná, Gran Resistencia, Gran San Juan, La Rioja, Posadas, Rawson - Trelew, Río Cuarto, Río Gallegos, San Luis - El Chorrillo, San Nicolás - Villa Constitución, Santa Rosa - Toay, Santiago del Estero - La Banda.
 
 ## Classes
 
@@ -41,16 +42,18 @@ Because each built edge brings its own ring, the fringe grows with the *length o
 
 Inside each box, the city is the set of urban-extent patches (8-connected) that touch the agglomerate perimeter. A town inside the box that never touches the perimeter is left out; the two cities of a two-city agglomerate (Ushuaia and Río Grande, Viedma and Carmen de Patagones) count together.
 
+When one patch touches the perimeters of two agglomerates, each of its pixels goes to the nearer perimeter. Without that rule the patch would count twice. Of the 31 agglomerates, it applies only to Gran Buenos Aires and Gran La Plata, whose built-up areas join (checked on the 2020 extent); patches that are not shared are not affected.
+
 ## Metrics
 
 | Metric | Definition |
 |---|---|
-| built-up | urban + suburban + rural built-up pixels inside the city's urban extent |
+| built-up | built-up pixels inside the city's urban extent |
 | saturation | built-up / urban extent |
 | openness | average unbuilt share of the 1 km² circle around the city's urban and suburban pixels |
 | fringe share | fringe open space / urban extent |
 | growth | annual compound rate, (x1 / x0)^(1 / years) - 1 |
-| project footprint | the *Bolsones de pobreza* definition (Angel, Parent & Civco 2007; rural cut 0.10): built-up with > 10 % of its circle built, plus unbuilt pixels with > 50 % built around them or within 100 m of that built-up |
+| project footprint | the *Bolsones de pobreza* definition (Angel, Parent & Civco 2007; rural cut 0.10): built-up with ≥ 10 % of its circle built, plus unbuilt pixels with > 50 % built around them or within 100 m of that built-up; patches touching the perimeter |
 
 ## Rules used to describe the cities
 
@@ -64,6 +67,7 @@ Inside each box, the city is the set of urban-extent patches (8-connected) that 
 - **Water counts as open space.** GISD30 has no water mask, so riverbanks and coasts next to the city become fringe or captured open space. The Atlas removes water from open space; this pipeline does not yet.
 - **The perimeter is simplified** to about 200 m. It decides which patches are "the city"; it is not used to cut pixels.
 - **Proximity is not reported**: measured to the centroid it is meaningless for multi-part agglomerates.
+- **Rural cut**: the Atlas 2016 edition puts suburban at 25-50 %; the *Bolsones de pobreza* project uses the 2007-2010 definition (rural below 10 %), so its footprint is larger than the extent measured here.
 - **No density yet**: it needs census population per tract.
 
 ## Pipeline
@@ -75,9 +79,11 @@ Inside each box, the city is the set of urban-extent patches (8-connected) that 
 | 02 | `02_landsat_bbox.R` | Landsat composite of each box (grid template for 04) |
 | 03 | `03_ghsl_built_s.R` | GHSL built-up surface, to compare with GISD30 |
 | 04 | `04_angel_atlas.R` | Angel classes and metrics per decade |
+| 04b | `04b_angel_sin_landsat.R` | the same as 04, cutting GISD30 with the box instead of the Landsat grid (no step 02 needed) |
 | 05 | `05_per_muni.R` | runs 02 + 04 for a list of agglomerations from `cajas.md` |
-| 06 | `06_sitio.R` | this site: charts, maps and pages |
+| 06 | `06_reporte.R` | the same results as one markdown report |
 | 07 | `07_limites_aglomerados.R` | agglomerate perimeters and boxes to a GeoPackage |
+| 08 | `08_sitio.R` | this site |
 
 ## References
 

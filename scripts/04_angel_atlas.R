@@ -26,6 +26,10 @@
 # aglomerado EPH (columna contorno de Rpipe/cajas.md). Asi un aglomerado de dos ciudades
 # (Ushuaia y Rio Grande, Viedma y Patagones) cuenta las dos, y un pueblo suelto de la
 # caja no entra. Sin contorno (Tandil): la mancha mas grande.
+# MANCHA COMPARTIDA. Si una mancha toca el perimetro de la ciudad y tambien el de otro
+# aglomerado de la caja (Gran Buenos Aires y Gran La Plata desde 2010), sus pixeles se
+# reparten por cercania: cada uno va al perimetro mas cercano. Las manchas que no se
+# comparten no cambian.
 #
 # METRICAS (sobre la ciudad):
 #   saturacion        construido dentro de la extension / extension
@@ -154,6 +158,11 @@ angel <- function(v, ep) {
 }
 
 
+# AJENO: los pixeles mas cerca del perimetro de otro aglomerado de la caja que del
+# propio (lo arma ciudad(); NULL si no hay otro). Solo se usa en manchas compartidas.
+AJENO <- NULL
+OTROS <- NULL
+
 la_ciudad <- function(m, cont) {
   # las componentes conexas (8) de m que tocan el contorno; sin contorno, la mas grande
   p <- patches(ifel(m, 1, NA), directions = 8)
@@ -163,7 +172,14 @@ la_ciudad <- function(m, cont) {
   } else {
     ids <- unique(na.omit(extract(p, cont, touches = TRUE)[, 2]))
   }
-  ifel(is.na(p), 0, p %in% ids)
+  dentro <- ifel(is.na(p), 0, p %in% ids)
+  if (!is.null(AJENO)) {
+    # manchas que tocan tambien otro perimetro: se queda solo lo mas cercano al propio
+    suyos <- unique(na.omit(extract(p, OTROS, touches = TRUE)[, 2]))
+    comun <- intersect(ids, suyos)
+    if (length(comun)) dentro <- dentro & !(ifel(is.na(p), 0, p %in% comun) & AJENO)
+  }
+  dentro
 }
 
 
@@ -242,6 +258,17 @@ ciudad <- function(slug) {
   v <- project(v, crs_utm, res = RES, method = "near")
   cont <- contorno_de(RPIPE, slug)
   if (!is.null(cont)) cont <- project(cont, crs_utm)
+  # perimetros de otros aglomerados en la caja: distancia a cada uno, una vez por ciudad
+  otros <- otros_de(RPIPE, slug)
+  AJENO <<- OTROS <<- NULL
+  if (!is.null(otros) && nrow(otros)) {
+    OTROS <<- project(otros, crs_utm)
+    d_mio <- distance(rasterize(cont, v[[1]], touches = TRUE))
+    d_otro <- distance(rasterize(OTROS, v[[1]], touches = TRUE))
+    AJENO <<- d_otro < d_mio
+    cat("  otros aglomerados en la caja:", paste(otros$slug, collapse = ", "), "
+")
+  }
   capas <- list()
   filas <- list()
   for (anio in ANIOS) {

@@ -1,4 +1,4 @@
-# Arg_crecimiento · Urban growth in Argentina's agglomerations
+# Rpipe · Urban growth in Argentina's agglomerations (R)
 
 How the 31 EPH urban agglomerations of Argentina grew between 1990 and 2020, measured with
 the classes of the **Atlas of Urban Expansion** (Angel et al. 2016) on the **GISD30**
@@ -6,10 +6,11 @@ impervious-surface record (Zhang et al. 2022, Landsat, 30 m). The guiding questi
 does it change the picture to count the *fringe open space* (the 100 m ring of unbuilt land
 around urban and suburban built-up) as part of the city?
 
-**Results site:** <https://makijota.github.io/Arg_crecimiento/>
+**Report:** [`reporte/REPORTE_angel.md`](reporte/REPORTE_angel.md), with its charts and maps
+in `reporte/img/`.
 
 Exploratory work done alongside the *Bolsones de pobreza* consultancy (IDB). The numbers are
-not figures of that project.
+not figures of that project and are not in `CIFRAS_CANONICAS.json`. Author: Jonathan.
 
 ## Pipeline
 
@@ -23,29 +24,35 @@ script's own location.
 | 02 | `scripts/02_landsat_bbox.R` | Landsat composite of a box, Planetary Computer STAC (grid template for 04) |
 | 03 | `scripts/03_ghsl_built_s.R` | GHSL built-up surface (JRC), to compare with GISD30 |
 | 04 | `scripts/04_angel_atlas.R` | Angel / Atlas classes and metrics per decade |
+| 04b | `scripts/04b_angel_sin_landsat.R` | the same as 04 without Landsat: cuts GISD30 with the box of `cajas.md` (no step 02 needed) |
 | 05 | `scripts/05_per_muni.R` | runs 02 + 04 for a list of agglomerations |
-| 06 | `scripts/06_sitio.R` | the results site in `docs/`: charts, maps and pages |
+| 06 | `scripts/06_reporte.R` | the report in `reporte/`, generated entirely from 04's results |
 | 07 | `scripts/07_limites_aglomerados.R` | agglomerate perimeters and boxes to `raw/boundaries/aglomerados.gpkg` |
 
-Inputs kept in the repo:
+`scripts/lib/`: `cajas.R` (boxes and perimeters) and `resultados.R` (the numbers, rules,
+charts, maps and text of the report).
 
-- `cajas.md`: the box of each city (perimeter + 10 km, or hand-drawn), read by 02, 04 and 05.
+Inputs:
+
+- `cajas.md`: boxes to cut Landsat and GISD30 and explore results per city (perimeter +
+  10 km, or hand-drawn). Read by 02, 04 and 05.
 - `raw/boundaries/aglomerados.gpkg`: the 31 agglomerate perimeters (layer `perimetro`) and the
   boxes (layer `cajas`). The perimeter is the *Bolsones de pobreza* analysis perimeter (EPH
   agglomerate plus the continuous 2022 city), simplified to about 200 m. Step 07 rebuilds it
-  and only runs inside that project's repository.
+  from the project's `plataforma/`.
 
-Everything under `raw/` (except the boundaries) and `outputs/` is downloaded or derived and
-is not versioned.
+Everything under `raw/` and `outputs/` is downloaded or derived and is not versioned.
 
 ## Running it
 
-R 4.5 with `terra`, `sf`, `ggplot2`, `curl`, `archive`, `digest` and `jsonlite`. Then, from the folder that contains this repo:
+R 4.5 with `terra`, `sf`, `ggplot2`, `curl`, `archive`, `digest` and `jsonlite`. From the
+folder that contains `Rpipe/`:
 
-    Rscript Arg_crecimiento/scripts/00_gisd30_descarga.R
-    Rscript Arg_crecimiento/scripts/01_gisd30_decadas.R
-    Rscript Arg_crecimiento/scripts/05_per_muni.R --ciudades salta,cordoba
-    Rscript Arg_crecimiento/scripts/06_sitio.R
+    Rscript Rpipe/scripts/00_gisd30_descarga.R
+    Rscript Rpipe/scripts/01_gisd30_decadas.R
+    Rscript Rpipe/scripts/07_limites_aglomerados.R
+    Rscript Rpipe/scripts/05_per_muni.R --ciudades salta,cordoba
+    Rscript Rpipe/scripts/06_reporte.R
 
 To add a city, add its row to `cajas.md` and run 05 with its slug.
 

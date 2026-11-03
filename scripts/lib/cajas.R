@@ -26,18 +26,27 @@ caja_de <- function(rpipe, slug) {
 
 
 contorno_de <- function(rpipe, slug) {
-  # contorno del aglomerado EPH (plataforma/datos/<contorno>/base.js) como SpatVector
-  # en EPSG:4326, o NULL si la ciudad no tiene contorno
+  # perimetro del aglomerado como SpatVector en EPSG:4326, o NULL si la ciudad no tiene
+  # contorno. Sale de raw/boundaries/aglomerados.gpkg (capa perimetro), que arma
+  # 07_limites_aglomerados.R y esta en el repo: no hace falta plataforma/.
   c <- caja_de(rpipe, slug)$contorno
   if (!nzchar(c)) return(NULL)
-  f <- file.path(dirname(rpipe), "plataforma", "datos", c, "base.js")
-  if (!file.exists(f)) stop("no esta el contorno ", f, call. = FALSE)
-  s <- paste(readLines(f, encoding = "UTF-8", warn = FALSE), collapse = "")
-  j <- jsonlite::fromJSON(substr(s, regexpr("{", s, fixed = TRUE),
-                                 max(gregexpr("}", s, fixed = TRUE)[[1]])),
-                          simplifyVector = FALSE)
-  gj <- jsonlite::toJSON(list(type = "Feature", properties = structure(list(), names = character()),
-                              geometry = list(type = j$contorno$t, coordinates = j$contorno$c)),
-                         auto_unbox = TRUE, digits = NA)
-  terra::vect(sf::st_read(as.character(gj), quiet = TRUE))
+  f <- file.path(rpipe, "raw", "boundaries", "aglomerados.gpkg")
+  if (!file.exists(f)) stop("no esta ", f, ": correr antes 07_limites_aglomerados.R", call. = FALSE)
+  p <- terra::vect(f, layer = "perimetro")
+  p <- p[p$slug == c, ]
+  if (nrow(p) != 1) stop("el contorno '", c, "' no esta en ", f, call. = FALSE)
+  p
+}
+
+
+otros_de <- function(rpipe, slug) {
+  # perimetros de OTROS aglomerados que caen en la caja de la ciudad (SpatVector en
+  # EPSG:4326, quiza vacio), o NULL si la ciudad no tiene contorno
+  cj <- caja_de(rpipe, slug)
+  if (!nzchar(cj$contorno)) return(NULL)
+  p <- terra::vect(file.path(rpipe, "raw", "boundaries", "aglomerados.gpkg"), layer = "perimetro")
+  caja <- terra::vect(terra::ext(cj$lon0, cj$lon1, cj$lat0, cj$lat1), crs = "EPSG:4326")
+  p <- p[p$slug != cj$contorno, ]
+  p[terra::relate(p, caja, "intersects")[, 1], ]
 }

@@ -1,6 +1,6 @@
 ---
 title: "Salta"
-nav_order: 13
+nav_order: 25
 parent: Agglomerations
 ---
 
@@ -42,7 +42,7 @@ km². Rural built-up and rural open space lie outside the urban extent; they app
 
 ## Maps
 
-<p class="fs-2"><span style="display:inline-block;width:0.9em;height:0.9em;background:#2a78d6;border:1px solid #c9c8c2;vertical-align:middle"></span> urban built-up &nbsp; <span style="display:inline-block;width:0.9em;height:0.9em;background:#eda100;border:1px solid #c9c8c2;vertical-align:middle"></span> suburban built-up &nbsp; <span style="display:inline-block;width:0.9em;height:0.9em;background:#eb6834;border:1px solid #c9c8c2;vertical-align:middle"></span> fringe open space &nbsp; <span style="display:inline-block;width:0.9em;height:0.9em;background:#1baf7a;border:1px solid #c9c8c2;vertical-align:middle"></span> captured open space &nbsp; <span style="display:inline-block;width:0.9em;height:0.9em;background:#8a8986;border:1px solid #c9c8c2;vertical-align:middle"></span> rural built-up &nbsp; <span style="display:inline-block;width:0.9em;height:0.9em;background:#f3f2ee;border:1px solid #c9c8c2;vertical-align:middle"></span> rural open space &nbsp; <b>black line</b>: agglomerate perimeter</p>
+![Map legend]({{ '/assets/img/maps/leyenda.png' | relative_url }})
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">
 <a href="{{ '/assets/img/maps/salta_1990.png' | relative_url }}"><img src="{{ '/assets/img/maps/salta_1990.png' | relative_url }}" alt="Salta 1990" loading="lazy" style="width:100%"></a>
@@ -51,4 +51,6 @@ km². Rural built-up and rural open space lie outside the urban extent; they app
 <a href="{{ '/assets/img/maps/salta_2020.png' | relative_url }}"><img src="{{ '/assets/img/maps/salta_2020.png' | relative_url }}" alt="Salta 2020" loading="lazy" style="width:100%"></a>
 </div>
 
-Maps are framed on the perimeter plus 5 km; the metrics use the larger box of `cajas.md` (slug `salta`). Click a map for full size.
+Click a map for full size.
+
+Maps are framed on the perimeter plus 5 km; the metrics use the larger box of `cajas.md` (slug `salta`).
