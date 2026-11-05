@@ -35,6 +35,7 @@ and the site always say the same thing. Only agglomerations are included: the ro
 | 05 | `scripts/05_per_muni.R` | runs 02 and 04 for a list of agglomerations | — |
 | 07 | `scripts/07_limites_aglomerados.R` | `raw/boundaries/aglomerados.gpkg`: perimeters, names, provinces and boxes | yes |
 | 09 | `scripts/09_censos_radios.R` | census tracts with persons, households and dwellings (`outputs/censos/radios_censos.gpkg`); not used by the site yet | no |
+| 10 | `scripts/10_crosswalk_radios.R` | crosswalk weights between censuses and the four censuses on one fixed tract grid (`radios_grilla_1991`); not used by the site yet | no |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 
 Step 03 (`scripts/03_ghsl_built_s.R`, GHSL) does not feed the site or the report.

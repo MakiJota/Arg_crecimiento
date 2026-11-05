@@ -29,6 +29,7 @@ script's own location.
 | 06 | `scripts/06_reporte.R` | the report in `reporte/`, generated entirely from 04's results |
 | 07 | `scripts/07_limites_aglomerados.R` | agglomerate perimeters and boxes to `raw/boundaries/aglomerados.gpkg` |
 | 09 | `scripts/09_censos_radios.R` | census tracts 1991, 2001, 2010, 2022 with persons, households and dwellings: one GeoPackage layer per census (`outputs/censos/radios_censos.gpkg`) |
+| 10 | `scripts/10_crosswalk_radios.R` | tract crosswalk between censuses (port of the project's `ag_6_crosswalk.py`) and persons, households and dwellings of the four censuses on one fixed grid (1991 by default): layer `radios_grilla_1991` in the same GeoPackage, plus totals per agglomeration |
 
 `scripts/lib/`: `cajas.R` (boxes and perimeters) and `resultados.R` (the numbers, rules,
 charts, maps and text of the report).
