@@ -28,6 +28,7 @@ script's own location.
 | 05 | `scripts/05_per_muni.R` | runs 02 + 04 for a list of agglomerations |
 | 06 | `scripts/06_reporte.R` | the report in `reporte/`, generated entirely from 04's results |
 | 07 | `scripts/07_limites_aglomerados.R` | agglomerate perimeters and boxes to `raw/boundaries/aglomerados.gpkg` |
+| 09 | `scripts/09_censos_radios.R` | census tracts 1991, 2001, 2010, 2022 with persons, households and dwellings: one GeoPackage layer per census (`outputs/censos/radios_censos.gpkg`) |
 
 `scripts/lib/`: `cajas.R` (boxes and perimeters) and `resultados.R` (the numbers, rules,
 charts, maps and text of the report).
