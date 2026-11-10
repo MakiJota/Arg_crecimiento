@@ -12,6 +12,7 @@ scripts or their inputs and rerun them.
 |---|---|---|
 | `scripts/06_reporte.R` | `reporte/REPORTE_angel.md` and `reporte/img/` (charts, maps, legend) | one markdown page that reads on GitHub or in VS Code |
 | `scripts/08_sitio.R` | `docs/` (Jekyll pages, `_config.yml`, `docs/assets/img/`) | the GitHub Pages site |
+| `scripts/15_visor_datos.R` | `docs/visor/datos/` (class and tract PNGs, Landsat JPEGs, tract tables, `indice.json`) | the interactive viewer of the density tests, `docs/visor/index.html` |
 | `scripts/lib/resultados.R` | nothing by itself | the shared part: reads the results, applies the rules, draws charts and maps, writes the text both use |
 
 Every number and every label ("filling in", "very fast") comes from `resultados.R`, computed
@@ -22,6 +23,13 @@ and the site always say the same thing. Only agglomerations are included: the ro
     Rscript scripts/06_reporte.R               # report, with maps
     Rscript scripts/08_sitio.R                 # site, with maps
     Rscript scripts/08_sitio.R --sin-mapas     # pages and charts only (fast)
+    Rscript scripts/15_visor_datos.R           # data of the density-test viewer (a few minutes)
+
+The viewer (`docs/visor/index.html`, served at <https://makijota.github.io/Arg_crecimiento/visor/>)
+computes tests 1 and 2 and their comparison in the browser for any threshold. It reads its data
+with `fetch`, so locally it needs a server, not a double click:
+
+    python -m http.server 8811 -d docs/visor     # then open http://127.0.0.1:8811
 
 ## What they read, and which step makes it
 
@@ -36,6 +44,11 @@ and the site always say the same thing. Only agglomerations are included: the ro
 | 07 | `scripts/07_limites_aglomerados.R` | `raw/boundaries/aglomerados.gpkg`: perimeters, names, provinces and boxes | yes |
 | 09 | `scripts/09_censos_radios.R` | census tracts with persons, households and dwellings (`outputs/censos/radios_censos.gpkg`); not used by the site yet | no |
 | 10 | `scripts/10_crosswalk_radios.R` | crosswalk weights between censuses and the four censuses on one fixed tract grid (`radios_grilla_1991`); not used by the site yet | no |
+| 11 | `scripts/11_radios_ciudad.R` | step 04's city per census tract (`outputs/densidad/<slug>/`); base of 12 and 13 | no |
+| 12 | `scripts/12_prueba_densidad.R` | test 1, urban patch by tract density (`pruebas/densidad_radios/`) | no |
+| 13 | `scripts/13_prueba_franja.R` | test 2, fringe added only in dense tracts (`pruebas/franja_densa/`) | no |
+| 14 | `scripts/14_prueba_comparada.R` | tests 1 and 2 side by side (`pruebas/comparacion/`) | no |
+| 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11 and 02 | yes, in `docs/` |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 
 Step 03 (`scripts/03_ghsl_built_s.R`, GHSL) does not feed the site or the report.

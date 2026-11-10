@@ -17,3 +17,6 @@ CLAUDE.md
 desktop.ini
 Thumbs.db
 .DS_Store
+
+# pruebas: la cache de cada prueba se rehace sola
+pruebas/*/cache/

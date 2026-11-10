@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urban extent and census density</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --bg: #fcfcfb; --panel: #ffffff; --ink: #0b0b0b; --ink2: #52514e; --ink3: #8a8983;
+  --line: #e6e5df; --accent: #1f4e79; --accent-soft: #e8eff7; --warn: #c4622d;
+  --head: #0b2642; --head-ink: #f3f5f8;
+  --c1990: #8db3dd; --c2000: #4f86c0; --c2010: #1f4e79; --c2020: #0b2642;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); }
+body { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+
+header { background: var(--head); color: var(--head-ink); display: flex; align-items: center; gap: 24px; padding: 0 18px; min-height: 52px; flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .1px; }
+header h1 small { display: block; font-weight: 400; font-size: 12px; color: #aebdd0; }
+nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+nav button { background: none; border: 0; color: #c9d4e2; font: inherit; font-size: 14px; padding: 16px 14px; cursor: pointer; border-bottom: 3px solid transparent; }
+nav button:hover { color: #fff; }
+nav button.on { color: #fff; border-bottom-color: #8db3dd; }
+
+main { display: grid; grid-template-columns: 270px 1fr 360px; min-height: 0; position: relative; }
+aside { background: var(--panel); overflow-y: auto; padding: 16px; border-color: var(--line); border-style: solid; border-width: 0; }
+#izq { border-right-width: 1px; }
+#der { border-left-width: 1px; }
+#mapa { min-height: 300px; background: #eceae4; }
+
+.paso { margin-bottom: 14px; }
+.paso label, .rotulo { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--ink2); margin-bottom: 5px; font-weight: 600; }
+.paso label b { color: var(--accent); margin-right: 4px; }
+select { width: 100%; font: inherit; font-size: 14px; padding: 7px 8px; border: 1px solid #cfcdc6; border-radius: 6px; background: #fff; color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #cfcdc6; border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; font-size: 12.5px; padding: 7px 4px; border: 0; background: #fff; cursor: pointer; color: var(--ink2); border-left: 1px solid #e6e5df; }
+.seg button:first-child { border-left: 0; }
+.seg button.on { background: var(--accent); color: #fff; }
+.ayuda { font-size: 12.5px; color: var(--ink2); line-height: 1.45; margin: 6px 0 0; }
+.paso label.chk { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink2); margin-top: 6px;
+  text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.leyenda { list-style: none; padding: 0; margin: 4px 0 0; font-size: 12.5px; }
+.leyenda li { display: flex; gap: 8px; align-items: center; margin: 5px 0; color: var(--ink2); }
+.leyenda i { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.08); }
+
+.cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.cifra { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.cifra span { display: block; font-size: 11px; color: var(--ink2); }
+.cifra b { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cifra em { font-style: normal; font-size: 11.5px; color: var(--ink3); display: block; }
+h3 { font-size: 13px; margin: 16px 0 2px; }
+.sub { font-size: 11.5px; color: var(--ink3); margin: 0 0 4px; }
+.graf { position: relative; }
+.graf svg { display: block; width: 100%; overflow: visible; }
+.graf text { font-size: 10.5px; fill: var(--ink2); font-family: inherit; }
+.tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; white-space: nowrap; display: none; z-index: 5; }
+.tip i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+.capa { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; z-index: 1000; display: none; }
+.capa.on { display: block; }
+.capa .dentro { max-width: 1100px; margin: 0 auto; padding: 24px 24px 60px; }
+.capa h2 { font-size: 22px; margin: 4px 0 6px; }
+.capa p, .capa li { font-size: 14.5px; line-height: 1.6; color: #2b2a28; }
+.pestanas { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 18px; }
+.pestanas button { font: inherit; font-size: 13.5px; padding: 7px 14px; border-radius: 999px; border: 1px solid #cfcdc6; background: #fff; cursor: pointer; color: var(--ink2); }
+.pestanas button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.metodo { display: none; }
+.metodo.on { display: block; }
+.formula { font-family: ui-monospace, Consolas, monospace; font-size: 13.5px; background: var(--accent-soft); border-radius: 6px; padding: 10px 14px; margin: 10px 0; color: var(--head); white-space: pre-wrap; }
+.tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 12px 0; }
+.tarjeta { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.tarjeta h4 { margin: 0 0 6px; font-size: 15px; }
+.tarjeta p { font-size: 13.5px; margin: 0 0 8px; }
+.ir { font: inherit; font-size: 13px; color: var(--accent); background: none; border: 1px solid var(--accent); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+.ir:hover { background: var(--accent-soft); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+th { font-size: 11.5px; color: var(--ink2); font-weight: 600; cursor: pointer; user-select: none; vertical-align: bottom; background: var(--bg); position: sticky; top: 0; }
+th:first-child, td:first-child { text-align: left; }
+td a { color: var(--accent); cursor: pointer; text-decoration: none; }
+td a:hover { text-decoration: underline; }
+.tabla { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.controles-res { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; margin: 10px 0 16px; }
+.controles-res > div { min-width: 200px; }
+.neg { color: var(--warn); }
+footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1px solid var(--line); background: var(--panel); }
+.cargando { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-size: 13px; z-index: 900; display: none; }
+.leaflet-popup-content { font-size: 12.5px; line-height: 1.5; }
+.pixelado { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+@media (max-width: 1100px) {
+  main { grid-template-columns: 240px 1fr; }
+  #der { grid-column: 1 / -1; border-left-width: 0; border-top-width: 1px; }
+  body { height: auto; }
+  #mapa { height: 70vh; }
+}
+@media (max-width: 700px) {
+  main { grid-template-columns: 1fr; }
+  #izq { border-right-width: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Urban extent and census density<small>Argentine agglomerations, 1990–2020 · two tests on the Angel urban extent</small></h1>
+  <nav>
+    <button data-vista="mapa" class="on">Map</button>
+    <button data-vista="metodos">Methods</button>
+    <button data-vista="resultados">Results</button>
+  </nav>
+</header>
+
+<main>
+  <aside id="izq">
+    <div class="paso">
+      <label><b>1</b>Method</label>
+      <div class="seg" id="metodo">
+        <button data-m="t1" class="on" title="Test 1: keep the urban extent only in dense tracts">Test 1</button>
+        <button data-m="t2" title="Test 2: built-up always; fringe only in dense tracts">Test 2</button>
+        <button data-m="cmp" title="Tests 1 and 2 side by side at the same cut">Compare</button>
+      </div>
+      <p class="ayuda" id="metodo-ayuda"></p>
+    </div>
+    <div class="paso">
+      <label for="ciudad"><b>2</b>Agglomeration</label>
+      <select id="ciudad"></select>
+    </div>
+    <div class="paso">
+      <label for="anio"><b>3</b>Year</label>
+      <select id="anio"></select>
+    </div>
+    <div class="paso">
+      <label for="corte"><b>4</b>Density threshold</label>
+      <select id="corte"></select>
+      <p class="ayuda">Persons per km² of urbanized land (built + fringe + captured) in the census tract.</p>
+    </div>
+    <div class="paso">
+      <label for="capa">Show on the map</label>
+      <select id="capa">
+        <option value="res">Result of the method</option>
+        <option value="lim">Result + census tract limits</option>
+        <option value="dens">Census tracts by density</option>
+      </select>
+    </div>
+    <div class="paso">
+      <label for="opacidad">Transparency of the result</label>
+      <input type="range" id="opacidad" min="0" max="100" value="15">
+    </div>
+    <div class="paso">
+      <label for="fondo">Background</label>
+      <select id="fondo">
+        <option value="landsat">Landsat of the selected year</option>
+        <option value="esri">Present-day imagery (Esri)</option>
+        <option value="carto">Light map</option>
+      </select>
+      <p class="ayuda" id="fondo-nota"></p>
+      <label class="chk"><input type="checkbox" id="fuera" checked> Show built land outside the city</label>
+      <label class="chk"><input type="checkbox" id="perim" checked> Show the analysis perimeter</label>
+    </div>
+    <div class="paso">
+      <span class="rotulo">Legend</span>
+      <ul class="leyenda" id="leyenda"></ul>
+    </div>
+    <p class="ayuda">Click on the map to see the census tract under the pointer.</p>
+  </aside>
+
+  <div id="mapa"><div class="cargando" id="cargando">Loading…</div></div>
+
+  <aside id="der">
+    <span class="rotulo" id="der-titulo">Selection</span>
+    <div class="cifras" id="cifras"></div>
+    <h3 id="g1-tit">City size by threshold</h3>
+    <p class="sub" id="g1-sub"></p>
+    <div class="graf" id="g1"></div>
+    <h3 id="g2-tit"></h3>
+    <p class="sub" id="g2-sub"></p>
+    <div class="graf" id="g2"></div>
+    <h3>Growth 1990–2020 by threshold</h3>
+    <p class="sub" id="g3-sub">% a year. Dotted: the Angel extent with no cut.</p>
+    <div class="graf" id="g3"></div>
+  </aside>
+
+  <!-- METHODS -->
+  <section class="capa" id="metodos"><div class="dentro">
+    <h2>Methods</h2>
+    <p>Two exploratory tests that cross the satellite urban extent with census population, to see whether a census tract's density helps define what the urban patch is. None of the numbers here are project figures.</p>
+    <div class="pestanas" id="m-pestanas">
+      <button data-p="base" class="on">The problem</button>
+      <button data-p="t1">Test 1</button>
+      <button data-p="t2">Test 2</button>
+      <button data-p="cmp">How they compare</button>
+      <button data-p="datos">Data and caveats</button>
+    </div>
+
+    <div class="metodo on" id="p-base">
+      <p>The satellite extent comes from <b>GISD30</b> (impervious surface at 30 m) classified with the <b>Angel / Atlas of Urban Expansion 2016</b> method. "The city" is the set of connected patches touching the analysis perimeter, made of four classes:</p>
+      <ul>
+        <li><b>Urban</b> and <b>suburban built-up</b>: pixels the satellite sees as built.</li>
+        <li><b>Fringe open space</b>: unbuilt land within 100 m of urban or suburban built-up.</li>
+        <li><b>Captured open space</b>: unbuilt gaps under 200 ha enclosed by the city.</li>
+      </ul>
+      <p>Fringe and captured land are <i>unbuilt</i>, but Angel counts them as city. That raises two opposite doubts:</p>
+      <div class="tarjetas">
+        <div class="tarjeta"><h4>1 · The extent may be too large</h4><p>Built pixels and their fringe count as city whether or not anyone lives there: airports, industrial parks, warehouses, lots not yet occupied.</p><button class="ir" data-ir="t1">Test 1 addresses this →</button></div>
+        <div class="tarjeta"><h4>2 · The built-up may be too small</h4><p>Older, coarser imagery (1990 above all) can miss buildings. Some of what Angel calls fringe in 1990 may be built land the satellite did not see.</p><button class="ir" data-ir="t2">Test 2 addresses this →</button></div>
+      </div>
+      <p>The census says where people actually live. Both tests use the same measure for each census tract:</p>
+      <div class="formula">density = persons of the tract / km² of the city (built + fringe + captured) inside the tract</div>
+      <p>This is density on <i>urbanized</i> land, not on the whole tract, so a large peripheral tract with a dense neighbourhood and a lot of countryside is not diluted by the countryside. Satellite years are paired with the nearest census: 1990–1991, 2000–2001, 2010–2010, 2020–2022.</p>
+    </div>
+
+    <div class="metodo" id="p-t1">
+      <p><b>Purpose.</b> Is the satellite extent counting as city land where few people live? The test removes the parts of the extent that sit in sparse tracts and shows what that does to size and growth.</p>
+      <div class="formula">patch(T) = the city inside tracts with density ≥ T</div>
+      <p>A tract below the cut leaves <b>entirely, built-up land included</b>. With no cut, the patch is the Angel extent.</p>
+      <p><b>What to look at.</b></p>
+      <ul>
+        <li><b>Area kept vs persons kept.</b> A cut that drops much land and few people is removing extent where nobody lives.</li>
+        <li><b>Growth by cut.</b> If 1990–2020 growth falls a lot with the cut, much of the satellite growth is land with few residents.</li>
+      </ul>
+      <button class="ir" data-abrir="t1">Open test 1 on the map →</button>
+    </div>
+
+    <div class="metodo" id="p-t2">
+      <p><b>Purpose.</b> Is some fringe actually built and unseen, mostly in the early years? Built-up land is never questioned; the census decides only whether a tract's fringe and captured land count as city.</p>
+      <div class="formula">city(T) = all built-up  +  fringe and captured land of tracts with density ≥ T</div>
+      <p>The fringe is in the density's denominator on purpose: if a tract is dense <i>even counting its fringe as urban land</i>, that fringe behaves like city and is probably built. No cut gives the Angel extent; "built only" gives the built-up alone.</p>
+      <p><b>Premise check.</b> If older imagery misses buildings, persons per km² of <i>built</i> land should be higher in the early years. That is consistent with the idea but does not prove it: a city that was denser and then spread out shows the same pattern.</p>
+      <ul>
+        <li><b>% of the fringe added, by year.</b> High in 1990 means that year's fringe sits in dense tracts and is likely built. Low in 2020 means the newer fringe is mostly empty land.</li>
+      </ul>
+      <button class="ir" data-abrir="t2">Open test 2 on the map →</button>
+    </div>
+
+    <div class="metodo" id="p-cmp">
+      <p>At the same cut, <b>both tests keep the same fringe and captured land</b>: that of tracts at or above the cut. They differ only in the <b>built-up land of tracts below the cut</b>.</p>
+      <div class="formula">test 2(T) − test 1(T) = built-up land of the tracts below T</div>
+      <table style="max-width:720px">
+        <thead><tr><th>Pixel of the Angel city</th><th>Test 1</th><th>Test 2</th><th>Colour on the map</th></tr></thead>
+        <tbody>
+          <tr><td>built-up, dense tract</td><td>kept</td><td>kept</td><td>dark blue</td></tr>
+          <tr><td>built-up, sparse tract</td><td class="neg">dropped</td><td>kept</td><td>light blue</td></tr>
+          <tr><td>fringe or captured, dense tract</td><td>kept</td><td>kept</td><td>violet</td></tr>
+          <tr><td>fringe or captured, sparse tract</td><td class="neg">dropped</td><td class="neg">dropped</td><td>red</td></tr>
+        </tbody>
+      </table>
+      <p>The light-blue class answers a concrete question: <i>how much of what the satellite sees as built sits in tracts with few residents?</i> If it grows over time, recent built-up growth is landing where few people live: industry, warehouses, gated developments or lots not yet occupied.</p>
+      <div class="tarjetas">
+        <div class="tarjeta"><h4>Test 1</h4><p>Question: is the extent counting land where nobody lives?<br>Strictest cut: only the densest tracts.<br>Tends to correct an extent that is too large, mostly in recent years.</p></div>
+        <div class="tarjeta"><h4>Test 2</h4><p>Question: is the fringe built land the satellite missed?<br>Strictest cut: built-up only.<br>Tends to correct a built-up that is too small, mostly in early years.</p></div>
+      </div>
+      <button class="ir" data-abrir="cmp">Open the comparison on the map →</button>
+    </div>
+
+    <div class="metodo" id="p-datos">
+      <ul>
+        <li><b>Urban extent:</b> GISD30 (Zhang et al. 2022), 30 m, classified with the Angel / Atlas 2016 method; shared patches between agglomerations are split by distance to each perimeter.</li>
+        <li><b>Census tracts:</b> 1991, 2001, 2010 and 2022 censuses, CEUR-CONICET via Source Cooperative. Persons for 2022 are 0.9 % under the INDEC total.</li>
+        <li><b>Areas:</b> each 30 m pixel goes whole to the tract that contains its centre. The figures here count only city land inside census tracts, so along coasts they can be slightly smaller than the full Angel extent.</li>
+        <li><b>Landsat:</b> the composites used as the grid of the pipeline (step 02), true colour, stretched per image. Not every agglomeration has them; otherwise use present-day imagery.</li>
+        <li><b>The tract is the unit.</b> One dense block keeps or admits all the land of its tract.</li>
+        <li><b>Tracts multiply between censuses</b>, so the same cut is finer-grained in later years.</li>
+        <li><b>Years are not simultaneous:</b> the 2020 satellite is paired with the 2022 census.</li>
+      </ul>
+      <p>Everything on this page is computed in the browser from the tract tables of step 11 (<code>Rpipe/scripts/11_radios_ciudad.R</code>), with the same rules as steps 12, 13 and 14. Data exported by <code>15_visor_datos.R</code>.</p>
+    </div>
+  </div></section>
+
+  <!-- RESULTS -->
+  <section class="capa" id="resultados"><div class="dentro">
+    <h2>Results across agglomerations</h2>
+    <p>Each agglomeration under the selected method and threshold, against the Angel extent with no cut. Click a column to sort, or a name to open it on the map.</p>
+    <div class="controles-res">
+      <div><span class="rotulo">Method</span><select id="r-metodo"><option value="t1">Test 1 · extent of dense tracts</option><option value="t2">Test 2 · built-up + dense fringe</option></select></div>
+      <div><span class="rotulo">Threshold</span><select id="r-corte"></select></div>
+      <div id="r-estado" class="ayuda"></div>
+    </div>
+    <h3 style="font-size:15px">Growth of the city 1990–2020</h3>
+    <p class="sub">% a year. Grey: Angel extent with no cut. Blue: the selected method and threshold.</p>
+    <div class="graf" id="r-graf"></div>
+    <h3 style="font-size:15px;margin-top:22px">Table</h3>
+    <div class="tabla"><table id="r-tabla"></table></div>
+  </div></section>
+</main>
+
+<footer>Exploratory. None of these numbers are project figures. GISD30 (Zhang et al. 2022) with Angel / Atlas 2016 classes; census tracts CEUR-CONICET via Source Cooperative; Landsat Collection 2 (USGS).</footer>
+
+<script>
+"use strict";
+const DATOS = "datos/";
+const ANIOS = [1990, 2000, 2010, 2020];
+const CENSO = { 1990: "1991", 2000: "2001", 2010: "2010", 2020: "2022" };
+const COL_ANIO = { 1990: "#8db3dd", 2000: "#4f86c0", 2010: "#1f4e79", 2020: "#0b2642" };
+const CORTES = [0, 300, 500, 1000, 2000, 3000, 3250, 3500, 3750, 4000, 4500, 5000];
+const cortesDe = m => m === "t2" ? CORTES.concat([Infinity]) : CORTES;
+const etqCorte = k => k === 0 ? "no cut (Angel)" : !isFinite(k) ? "built only" : fmt0(k) + " p/km²";
+const etqCorta = k => k === 0 ? "none" : !isFinite(k) ? "built" : k >= 1000 ? (k / 1000) + "k" : String(k);
+
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const GRIS = "#f2c500";   // construido fuera de la ciudad: amarillo
+const VIOLETA = "#8e44ad", ROJO = "#d7263d", AZUL = "#1f4e79", CELESTE = "#7fb8e6";
+// clases: [construido denso, construido ralo, franja densa, franja rala]
+const CLASES = {
+  t1: { col: [AZUL, CELESTE, VIOLETA, ROJO],
+        etq: ["built, kept", "built, dropped (sparse tract)", "fringe / captured, kept", "fringe / captured, dropped"] },
+  t2: { col: [AZUL, AZUL, VIOLETA, ROJO],
+        etq: ["built-up (always city)", null, "fringe / captured, added (dense tract)", "fringe / captured, not added"] },
+  cmp: { col: [AZUL, CELESTE, VIOLETA, ROJO],
+         etq: ["built, dense tract · both tests", "built, sparse tract · test 2 only", "fringe / captured, dense tract · both", "fringe / captured, sparse tract · neither"] },
+};
+// densidad del radio sobre lo urbanizado: un solo tono, claro a oscuro
+const DENS_CORTES = [300, 500, 1000, 2000, 3000, 4000, 5000];
+const DENS_COL = ["#f0f4fa", "#d6e3f2", "#b3cde8", "#86afd9", "#5b8ec7", "#3a6fae", "#22528e", "#0b2642"];
+const densClase = d => { let i = 0; while (i < DENS_CORTES.length && d >= DENS_CORTES[i]) i++; return i; };
+const AYUDA = {
+  t1: "Keeps the urban extent only in dense tracts. A sparse tract leaves entirely, its built land included.",
+  t2: "Built-up always counts. Fringe and captured land join only in dense tracts.",
+  cmp: "Both tests at the same cut. They differ only in the built land of sparse tracts (light blue).",
+};
+
+const fmt0 = x => Math.round(x).toLocaleString("en-US");
+const fmt1 = x => x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt2 = x => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const tasa = (a, b) => a > 0 && b > 0 ? 100 * (Math.pow(b / a, 1 / 30) - 1) : NaN;
+const $ = id => document.getElementById(id);
+
+const st = { m: "t1", slug: null, anio: 2020, corte: 500, opac: 0.85, fondo: "landsat", fuera: true, perim: true, capa: "res" };
+let INDICE = null;
+const RADIOS = {}, CLASE = {}, STATS = {};
+
+// ---------- datos ----------
+async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
+async function radios(slug) {
+  if (!RADIOS[slug]) RADIOS[slug] = await json(`${DATOS}${slug}/radios.json`);
+  return RADIOS[slug];
+}
+async function clase(slug, anio) {
+  const k = slug + anio;
+  if (!CLASE[k]) {
+    const blob = await (await fetch(`${DATOS}${slug}/clase_${anio}.png`)).blob();
+    const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+    const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
+    const d = cx.getImageData(0, 0, bmp.width, bmp.height).data;
+    const n = bmp.width * bmp.height, code = new Uint8Array(n), rid = new Uint16Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) { code[i] = d[j]; rid[i] = d[j + 1] * 256 + d[j + 2]; }
+    CLASE[k] = { w: bmp.width, h: bmp.height, code, rid };
+  }
+  return CLASE[k];
+}
+
+// estadisticas de una ciudad por anio y corte, con las reglas de 12, 13 y 14
+function stats(slug) {
+  if (STATS[slug]) return STATS[slug];
+  const R = RADIOS[slug], S = {};
+  for (const a of ANIOS) {
+    const y = R[a], n = y.dens.length;
+    let builtTot = 0, fringeTot = 0, pers = 0;
+    for (let i = 0; i < n; i++) if (y.construido[i] + y.abierto[i] > 0) { builtTot += y.construido[i]; fringeTot += y.abierto[i]; pers += y.personas[i]; }
+    S[a] = { angel: builtTot + fringeTot, builtTot, fringeTot, pers, porCorte: {} };
+    for (const k of CORTES.concat([Infinity])) {
+      let b = 0, f = 0, p = 0;
+      for (let i = 0; i < n; i++) {
+        const u = y.construido[i] + y.abierto[i];
+        if (u > 0 && (k === 0 || y.dens[i] >= k)) { b += y.construido[i]; f += y.abierto[i]; p += y.personas[i]; }
+      }
+      S[a].porCorte[k] = { t1: b + f, t2: builtTot + f, builtDense: b, fringeIn: f, persT1: p, builtSparse: builtTot - b };
+    }
+  }
+  return (STATS[slug] = S);
+}
+const valor = (S, a, k, m) => S[a].porCorte[k][m === "t2" ? "t2" : "t1"];
+
+// ---------- mapa ----------
+const map = L.map("mapa", { zoomControl: true, preferCanvas: true }).setView([-34.6, -64], 5);
+map.createPane("landsat").style.zIndex = 250;
+map.createPane("clases").style.zIndex = 400;
+map.createPane("radios").style.zIndex = 420;
+map.createPane("perimetro").style.zIndex = 450;
+const BASES = {
+  carto: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }),
+  esri: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Imagery © Esri, Maxar, Earthstar Geographics", maxZoom: 19 }),
+};
+L.control.scale({ imperial: false }).addTo(map);
+let base = null, capaLandsat = null, capaClase = null, capaPerim = null, lienzo = null, ciudadActual = null;
+
+function ciudad() { return INDICE.ciudades.find(c => c.slug === st.slug); }
+
+function ponerFondo() {
+  const c = ciudad(), tiene = c && c.landsat.includes(st.anio);
+  if (capaLandsat) { map.removeLayer(capaLandsat); capaLandsat = null; }
+  // Landsat: si no hay compuesto para ese anio, fondo vacio (no se sustituye por otra imagen)
+  const tile = st.fondo === "landsat" ? null : st.fondo;   // con Landsat, solo la imagen
+  if (base && base !== BASES[tile]) { map.removeLayer(base); base = null; }
+  if (tile && !base) base = BASES[tile].addTo(map);
+  if (st.fondo === "landsat" && tiene) {
+    capaLandsat = L.imageOverlay(`${DATOS}${c.slug}/landsat_${st.anio}.jpg`, c.limites, { pane: "landsat", attribution: "Landsat · USGS" }).addTo(map);
+  }
+  $("fondo-nota").textContent = st.fondo === "landsat" && !tiene
+    ? `No Landsat composite for ${c.nombre} in ${st.anio}: no background.`
+    : st.fondo === "esri" ? "Present-day imagery, not the selected year." : "";
+}
+
+function densos() {
+  // 1 si el radio (fila i, desde 1) toca la ciudad y esta en o sobre el corte
+  const R = RADIOS[st.slug][st.anio], k = st.corte, n = R.dens.length, denso = new Uint8Array(n + 1);
+  for (let i = 0; i < n; i++) denso[i + 1] = (R.construido[i] + R.abierto[i] > 0) && (k === 0 || R.dens[i] >= k) ? 1 : 0;
+  return denso;
+}
+
+function pintar(cl) {
+  // la clase de cada pixel de la ciudad segun el metodo y el corte
+  const k = st.corte, denso = densos();
+  const pal = CLASES[st.m].col.map(hex), gris = hex(GRIS);
+  if (!lienzo || lienzo.width !== cl.w || lienzo.height !== cl.h) {
+    lienzo = document.createElement("canvas"); lienzo.width = cl.w; lienzo.height = cl.h; lienzo.className = "pixelado";
+  }
+  const cx = lienzo.getContext("2d"), img = cx.createImageData(cl.w, cl.h), d = img.data, rid = cl.rid;
+  for (let i = 0, j = 0; i < cl.code.length; i++, j += 4) {
+    const c = cl.code[i];
+    let col = null;
+    if (c === 1 || c === 2) col = pal[(c === 1 ? 0 : 2) + (k === 0 || denso[rid[i]] === 1 ? 0 : 1)];
+    else if (c === 3 && st.fuera) col = gris;
+    if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+  }
+  cx.putImageData(img, 0, 0);
+  return lienzo;
+}
+
+// ---------- radios censales como poligonos ----------
+const GEO = {};
+const rendRadios = L.canvas({ pane: "radios", padding: 0.3 });
+let capaRadios = null, radiosClave = null, densoActual = null;
+async function geo(slug, anio) {
+  const k = slug + anio;
+  if (!GEO[k]) GEO[k] = await json(`${DATOS}${slug}/radios_${anio}.geojson`);
+  return GEO[k];
+}
+function estiloRadio(f) {
+  const R = RADIOS[st.slug][st.anio], j = f.properties.i - 1, u = R.construido[j] + R.abierto[j];
+  if (st.capa === "lim") return { color: "#1e1e1e", weight: 0.7, opacity: 0.75, fill: true, fillOpacity: 0 };
+  // como en los mapas de 12: un radio con menos del 10 % de su superficie en la ciudad no se
+  // rellena, porque su densidad sale de un retazo de ciudad que carga con todos sus habitantes
+  const lleno = u > 0 && u >= 0.1 * R.area[j];
+  return { color: "#ffffff", weight: 0.6, opacity: 0.9, fill: true, fillColor: lleno ? DENS_COL[densClase(R.dens[j])] : "#000",
+           fillOpacity: !lleno ? 0 : st.opac * (st.corte === 0 || densoActual[j + 1] ? 1 : 0.35) };
+}
+function textoRadio(j) {
+  const R = RADIOS[st.slug][st.anio], u = R.construido[j] + R.abierto[j];
+  let h = `Tract <b>${R.cod[j]}</b> · census ${CENSO[st.anio]}<br>${fmt0(R.personas[j])} persons · ${fmt2(R.area[j])} km²`;
+  if (u > 0) {
+    h += `<br>${fmt2(R.construido[j])} km² built + ${fmt2(R.abierto[j])} km² fringe in the city (${fmt0(100 * u / R.area[j])} % of the tract)`;
+    h += `<br>Density on urbanized land: <b>${fmt0(R.dens[j])}</b> p/km²`;
+    if (st.corte > 0) h += ` · ${R.dens[j] >= st.corte ? "dense" : "sparse"} at ${etqCorte(st.corte)}`;
+  } else h += "<br>No city land in this tract";
+  return h + `<br>Gross density: ${fmt0(R.personas[j] / R.area[j])} p/km²`;
+}
+async function ponerRadios() {
+  if (st.capa === "res") { if (capaRadios) { map.removeLayer(capaRadios); capaRadios = null; radiosClave = null; } return; }
+  densoActual = densos();
+  const clave = st.slug + st.anio;
+  if (radiosClave !== clave) {
+    const g = await geo(st.slug, st.anio);
+    if (capaRadios) map.removeLayer(capaRadios);
+    capaRadios = L.geoJSON(g, { renderer: rendRadios, style: estiloRadio,
+      onEachFeature: (f, l) => {
+        l.bindTooltip(() => textoRadio(f.properties.i - 1), { sticky: true, direction: "top", opacity: 0.95 });
+        l.on("mouseover", () => l.setStyle({ color: "#111", weight: 2.2, opacity: 1 }));
+        l.on("mouseout", () => capaRadios.resetStyle(l));
+      } }).addTo(map);
+    radiosClave = clave;
+  } else capaRadios.setStyle(estiloRadio);
+}
+
+async function dibujar(encuadrar) {
+  const c = ciudad();
+  $("cargando").style.display = "block";
+  try {
+    await radios(st.slug);
+    const cl = await clase(st.slug, st.anio);
+    const cv = pintar(cl);
+    if (ciudadActual !== st.slug || !capaClase) {
+      if (capaClase) map.removeLayer(capaClase);
+      // svgOverlay acepta cualquier elemento: se le pasa el canvas y Leaflet lo escala
+      capaClase = L.svgOverlay(cv, c.limites, { pane: "clases", interactive: false }).addTo(map);
+      if (capaPerim) map.removeLayer(capaPerim);
+      capaPerim = L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#111", weight: 1.6, fill: false, dashArray: "5 4" } });
+      ciudadActual = st.slug;
+    }
+    if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
+    capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
+    await ponerRadios();
+    if (encuadrar) map.fitBounds(c.limites, { padding: [10, 10] });
+    ponerFondo();
+    leyenda();
+    panelDerecho();
+    guardarHash();
+  } catch (e) {
+    console.error(e);
+    alert("Could not load the data. If you opened the file directly, serve the folder instead (see README): " + e.message);
+  } finally { $("cargando").style.display = "none"; }
+}
+
+map.on("click", e => {
+  const c = ciudad(), cl = CLASE[st.slug + st.anio];
+  if (!c || !cl) return;
+  const p = L.CRS.EPSG3857.project(e.latlng);
+  const a = L.CRS.EPSG3857.project(L.latLng(c.limites[0])), b = L.CRS.EPSG3857.project(L.latLng(c.limites[1]));
+  const px = Math.floor((p.x - a.x) / (b.x - a.x) * cl.w), py = Math.floor((b.y - p.y) / (b.y - a.y) * cl.h);
+  if (px < 0 || py < 0 || px >= cl.w || py >= cl.h) return;
+  const i = py * cl.w + px, code = cl.code[i], r = cl.rid[i];
+  const tipo = ["outside the city", "built-up of the city", "fringe / captured of the city", "built, outside the city"][code];
+  L.popup().setLatLng(e.latlng).setContent(`<b>Pixel: ${tipo}</b><br>` + (r > 0 ? textoRadio(r - 1) : "No census tract here")).openOn(map);
+});
+
+// ---------- panel izquierdo ----------
+function leyenda() {
+  const C = CLASES[st.m];
+  let h = "";
+  if (st.capa === "dens") {
+    const lim = [0].concat(DENS_CORTES);
+    h += `<li style="color:var(--ink)">Tract density, persons / km² urbanized</li>`;
+    DENS_COL.forEach((c, i) => h += `<li><i style="background:${c}"></i>${i < DENS_CORTES.length ? fmt0(lim[i]) + " – " + fmt0(DENS_CORTES[i]) : "≥ " + fmt0(lim[i])}</li>`);
+    if (st.corte > 0) h += `<li><i style="background:#86afd9;opacity:.37"></i>faded: below ${etqCorte(st.corte)}</li>`;
+    h += `<li><i style="background:none;border:1.5px solid #999"></i>tract limit; no fill if under 10 % of the tract is city (its density comes from a sliver)</li>`;
+  } else {
+    C.col.forEach((c, i) => { if (C.etq[i]) h += `<li><i style="background:${c}"></i>${C.etq[i]}</li>`; });
+    if (st.fuera) h += `<li><i style="background:${GRIS}"></i>built outside the city</li>`;
+    if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid #141414"></i>census tract limit</li>`;
+  }
+  if (st.perim) h += `<li><i style="background:none;border:1.5px dashed #111"></i>analysis perimeter</li>`;
+  $("leyenda").innerHTML = h;
+}
+function llenarCortes(sel, m, actual) {
+  sel.innerHTML = cortesDe(m).map(k => `<option value="${k}" ${k === actual ? "selected" : ""}>${etqCorte(k)}</option>`).join("");
+}
+function ponerMetodo(m) {
+  st.m = m;
+  document.querySelectorAll("#metodo button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  $("metodo-ayuda").textContent = AYUDA[m];
+  if (!cortesDe(m).includes(st.corte)) st.corte = 500;
+  llenarCortes($("corte"), m, st.corte);
+}
+
+// ---------- graficos ----------
+function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170 }) {
+  const W = el.clientWidth || 320, H = alto, m = { l: 40, r: 8, t: 8, b: 24 };
+  const vals = series.flatMap(s => s.v.filter(Number.isFinite)).concat(ref.map(r => r.y).filter(Number.isFinite));
+  let y0 = Math.min(ymin, ...vals), y1 = Math.max(...vals); if (!(y1 > y0)) y1 = y0 + 1;
+  const pad = (y1 - y0) * 0.06; y1 += pad; if (y0 < 0) y0 -= pad;
+  const X = i => m.l + (cats.length === 1 ? 0 : i * (W - m.l - m.r) / (cats.length - 1));
+  const Y = v => m.t + (y1 - v) / (y1 - y0) * (H - m.t - m.b);
+  const ticks = []; const paso = niceStep((y1 - y0) / 4);
+  for (let t = Math.ceil(y0 / paso) * paso; t <= y1; t += paso) ticks.push(t);
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  ticks.forEach(t => s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="#ecebe6"/><text x="${m.l - 5}" y="${Y(t) + 3.5}" text-anchor="end">${fmt(t)}</text>`);
+  const apretado = (W - m.l - m.r) / Math.max(1, cats.length - 1) < 34;
+  cats.forEach((c, i) => { if (!(apretado && ["3.25k", "3.75k", "4.5k"].includes(c))) s += `<text x="${X(i)}" y="${H - 7}" text-anchor="middle">${c}</text>`; });
+  if (actual >= 0) s += `<line x1="${X(actual)}" x2="${X(actual)}" y1="${m.t}" y2="${H - m.b}" stroke="#c4622d" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+  ref.forEach(r => { if (Number.isFinite(r.y)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(r.y)}" y2="${Y(r.y)}" stroke="${r.c}" stroke-width="1.2" stroke-dasharray="1.5 3"/>`; });
+  series.forEach(se => {
+    const pts = se.v.map((v, i) => Number.isFinite(v) ? `${X(i)},${Y(v)}` : null).filter(Boolean).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="${se.c}" stroke-width="${se.w || 2}" ${se.dash ? `stroke-dasharray="${se.dash}"` : ""} stroke-linejoin="round"/>`;
+    if (actual >= 0 && Number.isFinite(se.v[actual])) s += `<circle cx="${X(actual)}" cy="${Y(se.v[actual])}" r="${se.w > 2 ? 4.5 : 3.5}" fill="${se.c}" stroke="#fff" stroke-width="2"/>`;
+  });
+  s += `<line class="cruz" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="#52514e" stroke-width="1" style="display:none"/>`;
+  s += `<rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg><div class="tip"></div>`;
+  el.innerHTML = s;
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), cruz = el.querySelector(".cruz");
+  svg.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(cats.length - 1, Math.round((x - m.l) / ((W - m.l - m.r) / (cats.length - 1)))));
+    cruz.setAttribute("x1", X(i)); cruz.setAttribute("x2", X(i)); cruz.style.display = "";
+    tip.innerHTML = `<b>${cats[i]}</b>` + series.map(se => `<br><i style="background:${se.c}"></i>${se.n}: ${Number.isFinite(se.v[i]) ? fmt(se.v[i]) : "–"}`).join("")
+      + ref.map(rf => `<br><i style="background:${rf.c}"></i>${rf.n}: ${fmt(rf.y)}`).join("");
+    tip.style.display = "block";
+    const px = X(i) * r.width / W;
+    tip.style.left = (px > r.width / 2 ? px - tip.offsetWidth - 10 : px + 10) + "px"; tip.style.top = "6px";
+  });
+  svg.addEventListener("mouseleave", () => { tip.style.display = "none"; cruz.style.display = "none"; });
+}
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+
+function panelDerecho() {
+  const c = ciudad(), S = stats(st.slug), a = st.anio, k = st.corte, m = st.m;
+  const ks = cortesDe(m), cats = ks.map(etqCorta), idx = ks.indexOf(k), pc = S[a].porCorte[k];
+  $("der-titulo").textContent = `${c.nombre} · ${a} (census ${CENSO[a]}) · ${etqCorte(k)}`;
+  const cifra = (t, v, e) => `<div class="cifra"><span>${t}</span><b>${v}</b>${e ? `<em>${e}</em>` : ""}</div>`;
+  let h = cifra("Angel extent", fmt1(S[a].angel) + " km²", fmt0(S[a].pers) + " persons in its tracts");
+  if (m === "t1") {
+    h += cifra("Test 1 patch", fmt1(pc.t1) + " km²", fmt1(100 * pc.t1 / S[a].angel) + " % of the extent");
+    h += cifra("Persons kept", fmt1(100 * pc.persT1 / S[a].pers) + " %", fmt0(pc.persT1) + " persons");
+    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t1"), valor(S, 2020, k, "t1"))) + " %/yr", "Angel: " + fmt2(tasa(S[1990].angel, S[2020].angel)) + " %/yr");
+  } else if (m === "t2") {
+    h += cifra("Test 2 city", fmt1(pc.t2) + " km²", fmt1(100 * pc.t2 / S[a].angel) + " % of the extent");
+    h += cifra("Fringe added", fmt1(S[a].fringeTot > 0 ? 100 * pc.fringeIn / S[a].fringeTot : 0) + " %", fmt1(pc.fringeIn) + " of " + fmt1(S[a].fringeTot) + " km²");
+    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t2"), valor(S, 2020, k, "t2"))) + " %/yr", "Angel: " + fmt2(tasa(S[1990].angel, S[2020].angel)) + " %/yr");
+  } else {
+    h += cifra("Test 1 · Test 2", fmt1(pc.t1) + " · " + fmt1(pc.t2), "km²");
+    h += cifra("Built in sparse tracts", fmt1(pc.builtSparse) + " km²", fmt1(S[a].builtTot > 0 ? 100 * pc.builtSparse / S[a].builtTot : 0) + " % of built-up · test 2 only");
+    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t1"), valor(S, 2020, k, "t1"))) + " · " + fmt2(tasa(valor(S, 1990, k, "t2"), valor(S, 2020, k, "t2"))), "%/yr, test 1 · test 2");
+  }
+  $("cifras").innerHTML = h;
+
+  // 1: km2 por corte, un trazo por anio
+  const serie = (mm, a2) => ks.map(kk => valor(S, a2, kk, mm));
+  let series = [];
+  if (m === "cmp") {
+    ANIOS.forEach(a2 => series.push({ n: `${a2} test 2`, c: COL_ANIO[a2], v: serie("t2", a2), w: a2 === a ? 3 : 1.6 }));
+    ANIOS.forEach(a2 => series.push({ n: `${a2} test 1`, c: COL_ANIO[a2], v: serie("t1", a2), w: a2 === a ? 3 : 1.6, dash: "4 3" }));
+    $("g1-sub").textContent = "km². Solid: test 2; dashed: test 1. The gap is built-up land in sparse tracts.";
+  } else {
+    ANIOS.forEach(a2 => series.push({ n: String(a2), c: COL_ANIO[a2], v: serie(m, a2), w: a2 === a ? 3 : 1.6 }));
+    $("g1-sub").textContent = "km², one line per year; the selected year is thicker. Orange line: current threshold.";
+  }
+  grafico($("g1"), { cats, series, actual: idx, fmt: fmt0 });
+
+  // 2: segun el metodo
+  if (m === "t1") {
+    $("g2-tit").textContent = "Persons kept vs extent kept";
+    $("g2-sub").textContent = `${a}. % of the persons of the city's tracts, and % of the Angel extent.`;
+    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: [
+      { n: "persons kept", c: "#1f4e79", v: ks.map(kk => 100 * S[a].porCorte[kk].persT1 / S[a].pers), w: 2.4 },
+      { n: "extent kept", c: "#c4622d", v: ks.map(kk => 100 * S[a].porCorte[kk].t1 / S[a].angel), w: 2.4 } ] });
+  } else if (m === "t2") {
+    $("g2-tit").textContent = "Share of the fringe that joins the city";
+    $("g2-sub").textContent = "% of fringe + captured land in tracts at or above the threshold, by year.";
+    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
+      v: ks.map(kk => S[a2].fringeTot > 0 ? 100 * S[a2].porCorte[kk].fringeIn / S[a2].fringeTot : NaN) })) });
+  } else {
+    $("g2-tit").textContent = "Built-up land in sparse tracts";
+    $("g2-sub").textContent = "% of all built-up land that only test 2 keeps, by year.";
+    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
+      v: ks.map(kk => S[a2].builtTot > 0 ? 100 * S[a2].porCorte[kk].builtSparse / S[a2].builtTot : NaN) })) });
+  }
+
+  // 3: crecimiento por corte
+  const ang = tasa(S[1990].angel, S[2020].angel);
+  const crec = mm => ks.map(kk => tasa(valor(S, 1990, kk, mm), valor(S, 2020, kk, mm)));
+  const s3 = m === "cmp" ? [{ n: "test 1", c: "#c4622d", v: crec("t1"), w: 2.4 }, { n: "test 2", c: "#1f4e79", v: crec("t2"), w: 2.4 }]
+                         : [{ n: m === "t1" ? "test 1" : "test 2", c: "#1f4e79", v: crec(m), w: 2.4 }];
+  grafico($("g3"), { cats, actual: idx, fmt: fmt2, ymin: Math.min(0, ang), series: s3, ref: [{ n: "Angel, no cut", y: ang, c: "#0b0b0b" }] });
+}
+
+// ---------- resultados ----------
+let orden = { col: "nombre", asc: true };
+async function resultados() {
+  const m = $("r-metodo").value, k = Number($("r-corte").value);
+  const faltan = INDICE.ciudades.filter(c => !RADIOS[c.slug]);
+  if (faltan.length) {
+    $("r-estado").textContent = `Loading ${faltan.length} agglomerations…`;
+    await Promise.all(faltan.map(c => radios(c.slug)));
+  }
+  $("r-estado").textContent = "";
+  const filas = INDICE.ciudades.map(c => {
+    const S = stats(c.slug), v90 = valor(S, 1990, k, m), v20 = valor(S, 2020, k, m);
+    return { slug: c.slug, nombre: c.nombre, a90: S[1990].angel, a20: S[2020].angel, v90, v20,
+             pct: 100 * v20 / S[2020].angel,
+             pers: m === "t1" ? 100 * S[2020].porCorte[k].persT1 / S[2020].pers : 100,
+             ta: tasa(S[1990].angel, S[2020].angel), tm: tasa(v90, v20) };
+  });
+  filas.forEach(f => f.dif = f.tm - f.ta);
+  const cols = [["nombre", "Agglomeration"], ["a90", "Angel 1990 km²"], ["a20", "Angel 2020 km²"], ["v90", "Method 1990 km²"], ["v20", "Method 2020 km²"],
+                ["pct", "% of Angel kept 2020"], ...(m === "t1" ? [["pers", "% persons kept 2022"]] : []),
+                ["ta", "Growth Angel %/yr"], ["tm", "Growth method %/yr"], ["dif", "Difference, points"]];
+  filas.sort((x, y) => (orden.col === "nombre" ? x.nombre.localeCompare(y.nombre) : (x[orden.col] - y[orden.col])) * (orden.asc ? 1 : -1));
+  const f = { a90: fmt1, a20: fmt1, v90: fmt1, v20: fmt1, pct: fmt1, pers: fmt1, ta: fmt2, tm: fmt2, dif: fmt2 };
+  $("r-tabla").innerHTML = `<thead><tr>${cols.map(([c, t]) => `<th data-c="${c}">${t}${orden.col === c ? (orden.asc ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead><tbody>`
+    + filas.map(r => `<tr>${cols.map(([c]) => c === "nombre" ? `<td><a data-slug="${r.slug}">${r.nombre}</a></td>`
+        : `<td class="${c === "dif" && r.dif < 0 ? "neg" : ""}">${Number.isFinite(r[c]) ? f[c](r[c]) : "–"}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  $("r-tabla").querySelectorAll("th").forEach(th => th.onclick = () => {
+    orden = { col: th.dataset.c, asc: orden.col === th.dataset.c ? !orden.asc : th.dataset.c === "nombre" }; resultados();
+  });
+  $("r-tabla").querySelectorAll("a[data-slug]").forEach(a => a.onclick = () => {
+    st.slug = a.dataset.slug; $("ciudad").value = st.slug; ponerMetodo(m); st.corte = k; llenarCortes($("corte"), m, k);
+    vista("mapa"); dibujar(true);
+  });
+  graficoCrecimiento(filas.slice().sort((x, y) => x.ta - y.ta), m, k);
+}
+
+function graficoCrecimiento(filas, m, k) {
+  const el = $("r-graf"), W = el.clientWidth || 900, fila = 20, mg = { l: 230, r: 20, t: 10, b: 28 }, H = mg.t + mg.b + fila * filas.length;
+  const vals = filas.flatMap(f => [f.ta, f.tm]).filter(Number.isFinite);
+  const x0 = Math.min(0, ...vals), x1 = Math.max(...vals) * 1.05, X = v => mg.l + (v - x0) / (x1 - x0) * (W - mg.l - mg.r);
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  const paso = niceStep((x1 - x0) / 6);
+  for (let t = Math.ceil(x0 / paso) * paso; t <= x1; t += paso)
+    s += `<line x1="${X(t)}" x2="${X(t)}" y1="${mg.t}" y2="${H - mg.b}" stroke="#ecebe6"/><text x="${X(t)}" y="${H - 8}" text-anchor="middle">${fmt1(t)}</text>`;
+  filas.forEach((f, i) => {
+    const y = mg.t + fila * i + fila / 2;
+    s += `<text x="${mg.l - 8}" y="${y + 3.5}" text-anchor="end">${f.nombre}</text>`;
+    if (Number.isFinite(f.tm)) s += `<line x1="${X(f.ta)}" x2="${X(f.tm)}" y1="${y}" y2="${y}" stroke="#cfcdc6" stroke-width="2"/>`;
+    s += `<circle cx="${X(f.ta)}" cy="${y}" r="4.5" fill="#8a8983" stroke="#fff" stroke-width="1.5"><title>${f.nombre}, Angel: ${fmt2(f.ta)} %/yr</title></circle>`;
+    if (Number.isFinite(f.tm)) s += `<circle cx="${X(f.tm)}" cy="${y}" r="4.5" fill="#1f4e79" stroke="#fff" stroke-width="1.5"><title>${f.nombre}, ${m === "t1" ? "test 1" : "test 2"} at ${etqCorte(k)}: ${fmt2(f.tm)} %/yr</title></circle>`;
+  });
+  el.innerHTML = s + "</svg>";
+}
+
+// ---------- vistas, estado ----------
+function vista(v) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.vista === v));
+  $("metodos").classList.toggle("on", v === "metodos");
+  $("resultados").classList.toggle("on", v === "resultados");
+  if (v === "resultados") { $("r-metodo").value = st.m === "t2" ? "t2" : "t1"; llenarCortes($("r-corte"), $("r-metodo").value, st.m === "t2" || cortesDe("t1").includes(st.corte) ? st.corte : 500); resultados(); }
+  if (v === "mapa") setTimeout(() => map.invalidateSize(), 50);
+}
+function pestana(p) {
+  document.querySelectorAll("#m-pestanas button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  document.querySelectorAll(".metodo").forEach(d => d.classList.toggle("on", d.id === "p-" + p));
+}
+function guardarHash() {
+  const k = isFinite(st.corte) ? st.corte : "inf";
+  history.replaceState(null, "", `#m=${st.m}&c=${st.slug}&y=${st.anio}&t=${k}&f=${st.fondo}&l=${st.capa}`);
+}
+function leerHash() {
+  const h = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
+  if (["t1", "t2", "cmp"].includes(h.m)) st.m = h.m;
+  if (h.c && INDICE.ciudades.some(c => c.slug === h.c)) st.slug = h.c;
+  if (ANIOS.includes(Number(h.y))) st.anio = Number(h.y);
+  if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (cortesDe(st.m).includes(t)) st.corte = t; }
+  if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
+  if (["res", "lim", "dens"].includes(h.l)) st.capa = h.l;
+}
+
+const vistaInicial = (location.hash.match(/v=(metodos|resultados)/) || [])[1];
+async function iniciar() {
+  try { INDICE = await json(DATOS + "indice.json"); }
+  catch (e) {
+    $("cargando").style.display = "block";
+    $("cargando").innerHTML = "Could not read <code>datos/indice.json</code>. Serve this folder over http (for example <code>python -m http.server</code>) instead of opening the file directly.";
+    return;
+  }
+  st.slug = INDICE.ciudades.some(c => c.slug === "salta") ? "salta" : INDICE.ciudades[0].slug;
+  leerHash();
+  $("ciudad").innerHTML = INDICE.ciudades.map(c => `<option value="${c.slug}">${c.nombre}${c.landsat.length ? "" : " (no Landsat)"}</option>`).join("");
+  $("ciudad").value = st.slug;
+  $("anio").innerHTML = ANIOS.map(a => `<option value="${a}">${a} · census ${CENSO[a]}</option>`).join("");
+  $("anio").value = st.anio;
+  $("fondo").value = st.fondo;
+  $("capa").value = st.capa;
+  $("opacidad").value = Math.round(100 * (1 - st.opac));
+  ponerMetodo(st.m);
+
+  document.querySelectorAll("#metodo button").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.m); dibujar(false); });
+  $("ciudad").onchange = e => { st.slug = e.target.value; dibujar(true); };
+  $("anio").onchange = e => { st.anio = Number(e.target.value); dibujar(false); };
+  $("corte").onchange = e => { st.corte = Number(e.target.value); dibujar(false); };
+  $("opacidad").oninput = e => { st.opac = 1 - e.target.value / 100; if (capaClase) capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac); if (capaRadios && st.capa === "dens") capaRadios.setStyle(estiloRadio); };
+  $("fondo").onchange = e => { st.fondo = e.target.value; ponerFondo(); guardarHash(); };
+  $("fuera").onchange = e => { st.fuera = e.target.checked; dibujar(false); };
+  $("capa").onchange = e => { st.capa = e.target.value; dibujar(false); };
+  $("perim").onchange = e => { st.perim = e.target.checked; dibujar(false); };
+  document.querySelectorAll("nav button").forEach(b => b.onclick = () => vista(b.dataset.vista));
+  document.querySelectorAll("#m-pestanas button").forEach(b => b.onclick = () => pestana(b.dataset.p));
+  document.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => pestana(b.dataset.ir));
+  document.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.abrir); vista("mapa"); dibujar(false); });
+  $("r-metodo").onchange = () => {
+    const m = $("r-metodo").value, v = Number($("r-corte").value);
+    llenarCortes($("r-corte"), m, cortesDe(m).includes(v) ? v : 500); resultados();
+  };
+  $("r-corte").onchange = resultados;
+  let espera; window.addEventListener("resize", () => { clearTimeout(espera); espera = setTimeout(() => { if (st.slug && RADIOS[st.slug]) panelDerecho(); }, 150); });
+  await dibujar(true);
+  if (vistaInicial) vista(vistaInicial);
+}
+iniciar();
+</script>
+</body>
+</html>
