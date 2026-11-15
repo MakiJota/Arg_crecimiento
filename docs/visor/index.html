@@ -38,7 +38,7 @@ aside { background: var(--panel); overflow-y: auto; padding: 16px; border-color:
 .paso label b { color: var(--accent); margin-right: 4px; }
 select { width: 100%; font: inherit; font-size: 14px; padding: 7px 8px; border: 1px solid #cfcdc6; border-radius: 6px; background: #fff; color: var(--ink); }
 input[type=range] { width: 100%; accent-color: var(--accent); }
-.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #cfcdc6; border-radius: 6px; overflow: hidden; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid #cfcdc6; border-radius: 6px; overflow: hidden; }
 .seg button { font: inherit; font-size: 12.5px; padding: 7px 4px; border: 0; background: #fff; cursor: pointer; color: var(--ink2); border-left: 1px solid #e6e5df; }
 .seg button:first-child { border-left: 0; }
 .seg button.on { background: var(--accent); color: #fff; }
@@ -48,6 +48,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 .leyenda { list-style: none; padding: 0; margin: 4px 0 0; font-size: 12.5px; }
 .leyenda li { display: flex; gap: 8px; align-items: center; margin: 5px 0; color: var(--ink2); }
+.leyenda label, .paso .leyenda label { display: flex; gap: 8px; align-items: center; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; color: var(--ink2); margin: 0; }
+.leyenda input { margin: 0; accent-color: var(--accent); }
 .leyenda i { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.08); }
 
 .cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
@@ -109,7 +111,7 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
 </head>
 <body>
 <header>
-  <h1>Urban extent and census density<small>Argentine agglomerations, 1990–2020 · two tests on the Angel urban extent</small></h1>
+  <h1>Urban extent and census density<small>Argentine agglomerations, 1990–2020 · three tests and a fill rule on the Angel urban extent</small></h1>
   <nav>
     <button data-vista="mapa" class="on">Map</button>
     <button data-vista="metodos">Methods</button>
@@ -124,6 +126,7 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
       <div class="seg" id="metodo">
         <button data-m="t1" class="on" title="Test 1: keep the urban extent only in dense tracts">Test 1</button>
         <button data-m="t2" title="Test 2: built-up always; fringe only in dense tracts">Test 2</button>
+        <button data-m="t3" title="Test 3: like test 2, with a percentile of the city's own tract densities as the cut">Test 3</button>
         <button data-m="cmp" title="Tests 1 and 2 side by side at the same cut">Compare</button>
       </div>
       <p class="ayuda" id="metodo-ayuda"></p>
@@ -131,15 +134,36 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
     <div class="paso">
       <label for="ciudad"><b>2</b>Agglomeration</label>
       <select id="ciudad"></select>
+      <p class="ayuda" id="aviso" style="color:var(--warn)"></p>
     </div>
     <div class="paso">
       <label for="anio"><b>3</b>Year</label>
       <select id="anio"></select>
     </div>
     <div class="paso">
-      <label for="corte"><b>4</b>Density threshold</label>
+      <label for="corte" id="corte-rot"><b>4</b>Density threshold</label>
       <select id="corte"></select>
-      <p class="ayuda">Persons per km² of urbanized land (built + fringe + captured) in the census tract.</p>
+      <p class="ayuda" id="corte-ayuda">Persons per km² of urbanized land (built + fringe + captured) in the census tract.</p>
+    </div>
+    <div class="paso">
+      <label for="relleno"><b>5</b>Fill the centre</label>
+      <select id="relleno">
+        <option value="no">No fill</option>
+        <option value="h30">Gaps up to 30 m</option>
+        <option value="h60">Gaps up to 60 m</option>
+        <option value="h90">Gaps up to 90 m</option>
+        <option value="s60">≥ 60 % built within 150 m</option>
+        <option value="s70">≥ 70 % built within 150 m</option>
+        <option value="s80">≥ 80 % built within 150 m</option>
+      </select>
+      <select id="dist" style="margin-top:6px">
+        <option value="100">farther than 100 m from the city edge</option>
+        <option value="200" selected>farther than 200 m from the city edge</option>
+        <option value="400">farther than 400 m from the city edge</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="rell-denso" checked> only in tracts at or above the threshold</label>
+      <label class="chk"><input type="checkbox" id="anillo"> mark the edge ring of open land</label>
+      <p class="ayuda">Open land (fringe, captured) deep inside the city that is a narrow gap between built pixels is probably built and missed by the satellite. Filled pixels count as built-up.</p>
     </div>
     <div class="paso">
       <label for="capa">Show on the map</label>
@@ -161,11 +185,9 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
         <option value="carto">Light map</option>
       </select>
       <p class="ayuda" id="fondo-nota"></p>
-      <label class="chk"><input type="checkbox" id="fuera" checked> Show built land outside the city</label>
-      <label class="chk"><input type="checkbox" id="perim" checked> Show the analysis perimeter</label>
     </div>
     <div class="paso">
-      <span class="rotulo">Legend</span>
+      <span class="rotulo">Legend · tick to show</span>
       <ul class="leyenda" id="leyenda"></ul>
     </div>
     <p class="ayuda">Click on the map to see the census tract under the pointer.</p>
@@ -185,6 +207,10 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
     <h3>Growth 1990–2020 by threshold</h3>
     <p class="sub" id="g3-sub">% a year. Dotted: the Angel extent with no cut.</p>
     <div class="graf" id="g3"></div>
+    <h3>Density of the census tracts</h3>
+    <p class="sub" id="g4-sub"></p>
+    <div class="graf" id="g4"></div>
+    <p class="sub" style="margin-top:10px">Click or drag on any chart to change the threshold.</p>
   </aside>
 
   <!-- METHODS -->
@@ -195,7 +221,9 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
       <button data-p="base" class="on">The problem</button>
       <button data-p="t1">Test 1</button>
       <button data-p="t2">Test 2</button>
+      <button data-p="t3">Test 3</button>
       <button data-p="cmp">How they compare</button>
+      <button data-p="relleno">Fill rule</button>
       <button data-p="datos">Data and caveats</button>
     </div>
 
@@ -239,6 +267,26 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
       <button class="ir" data-abrir="t2">Open test 2 on the map →</button>
     </div>
 
+    <div class="metodo" id="p-t3">
+      <p><b>Purpose.</b> Tests 1 and 2 use the same absolute cut everywhere, but the density of the census tracts differs a lot between cities and between censuses. Test 3 sets the cut <b>relative to each city</b>: a percentile of its own tract densities, that census.</p>
+      <div class="formula">city(p) = all built-up  +  fringe and captured land of tracts with density ≥ P(p)
+P(p) = percentile p of the tract densities of that city and census</div>
+      <p>The percentile is taken over tracts with at least 10 % of their area in the city: a tract with a sliver of city carries all its residents on a few pixels, and its density is inflated. As in test 2, built-up land always counts. At p = 25 the fringe of the least dense quarter of the city's tracts is left out.</p>
+      <p><b>What to look at.</b> The same percentile is a different number of persons per km² in each city and census (the help under the threshold shows it). The density chart on the right shows the city's distribution and where the cut falls.</p>
+      <button class="ir" data-abrir="t3">Open test 3 on the map →</button>
+    </div>
+
+    <div class="metodo" id="p-relleno">
+      <p><b>The problem.</b> In old, dense centres (Salta, Tucumán, Catamarca) GISD30 misses many pixels inside built blocks: tree-lined streets, courtyards, roofs it does not read as impervious. Angel then calls them fringe or captured open space, so the centre looks full of holes. They are not the same as the <b>edge ring</b> of fringe around the city, which is real unbuilt land next to new development.</p>
+      <p><b>Edge ring vs interior.</b> Each open pixel of the city gets its distance to the nearest land outside the city. Within D (100, 200 or 400 m) it is the edge ring; beyond, interior. "Mark the edge ring" paints it in a lighter shade.</p>
+      <p><b>Fill rules.</b> An interior open pixel becomes built-up if:</p>
+      <ul>
+        <li><b>Gap rule</b> (recommended): closing the built-up (dilating and then eroding it with a square of radius 30, 60 or 90 m) covers it. A narrow gap between built pixels is filled; a plaza, a park or a field wider than about twice the radius is not.</li>
+        <li><b>Share rule</b>: at least 60, 70 or 80 % of the pixels within 150 m are built. In practice GISD30 sees only about half of the pixels in the old centres, so 80 % fills almost nothing.</li>
+      </ul>
+      <p>With "only in tracts at or above the threshold", the fill also asks for a dense tract. Inside the Angel city the fill does not change the extent: it moves land from open to built. It does change the extent of tests 1–3 when it fills interior land of sparse tracts, which those tests would drop.</p>
+    </div>
+
     <div class="metodo" id="p-cmp">
       <p>At the same cut, <b>both tests keep the same fringe and captured land</b>: that of tracts at or above the cut. They differ only in the <b>built-up land of tracts below the cut</b>.</p>
       <div class="formula">test 2(T) − test 1(T) = built-up land of the tracts below T</div>
@@ -278,7 +326,7 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
     <h2>Results across agglomerations</h2>
     <p>Each agglomeration under the selected method and threshold, against the Angel extent with no cut. Click a column to sort, or a name to open it on the map.</p>
     <div class="controles-res">
-      <div><span class="rotulo">Method</span><select id="r-metodo"><option value="t1">Test 1 · extent of dense tracts</option><option value="t2">Test 2 · built-up + dense fringe</option></select></div>
+      <div><span class="rotulo">Method</span><select id="r-metodo"><option value="t1">Test 1 · extent of dense tracts</option><option value="t2">Test 2 · built-up + dense fringe</option><option value="t3">Test 3 · built-up + fringe above the city's own percentile</option></select></div>
       <div><span class="rotulo">Threshold</span><select id="r-corte"></select></div>
       <div id="r-estado" class="ayuda"></div>
     </div>
@@ -298,32 +346,12 @@ const DATOS = "datos/";
 const ANIOS = [1990, 2000, 2010, 2020];
 const CENSO = { 1990: "1991", 2000: "2001", 2010: "2010", 2020: "2022" };
 const COL_ANIO = { 1990: "#8db3dd", 2000: "#4f86c0", 2010: "#1f4e79", 2020: "#0b2642" };
-const CORTES = [0, 300, 500, 1000, 2000, 3000, 3250, 3500, 3750, 4000, 4500, 5000];
-const cortesDe = m => m === "t2" ? CORTES.concat([Infinity]) : CORTES;
-const etqCorte = k => k === 0 ? "no cut (Angel)" : !isFinite(k) ? "built only" : fmt0(k) + " p/km²";
-const etqCorta = k => k === 0 ? "none" : !isFinite(k) ? "built" : k >= 1000 ? (k / 1000) + "k" : String(k);
-
-const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-const GRIS = "#f2c500";   // construido fuera de la ciudad: amarillo
-const VIOLETA = "#8e44ad", ROJO = "#d7263d", AZUL = "#1f4e79", CELESTE = "#7fb8e6";
-// clases: [construido denso, construido ralo, franja densa, franja rala]
-const CLASES = {
-  t1: { col: [AZUL, CELESTE, VIOLETA, ROJO],
-        etq: ["built, kept", "built, dropped (sparse tract)", "fringe / captured, kept", "fringe / captured, dropped"] },
-  t2: { col: [AZUL, AZUL, VIOLETA, ROJO],
-        etq: ["built-up (always city)", null, "fringe / captured, added (dense tract)", "fringe / captured, not added"] },
-  cmp: { col: [AZUL, CELESTE, VIOLETA, ROJO],
-         etq: ["built, dense tract · both tests", "built, sparse tract · test 2 only", "fringe / captured, dense tract · both", "fringe / captured, sparse tract · neither"] },
-};
-// densidad del radio sobre lo urbanizado: un solo tono, claro a oscuro
-const DENS_CORTES = [300, 500, 1000, 2000, 3000, 4000, 5000];
-const DENS_COL = ["#f0f4fa", "#d6e3f2", "#b3cde8", "#86afd9", "#5b8ec7", "#3a6fae", "#22528e", "#0b2642"];
-const densClase = d => { let i = 0; while (i < DENS_CORTES.length && d >= DENS_CORTES[i]) i++; return i; };
-const AYUDA = {
-  t1: "Keeps the urban extent only in dense tracts. A sparse tract leaves entirely, its built land included.",
-  t2: "Built-up always counts. Fringe and captured land join only in dense tracts.",
-  cmp: "Both tests at the same cut. They differ only in the built land of sparse tracts (light blue).",
-};
+// cortes absolutos (personas / km2 urbanizado), cada 200 entre 1.000 y 3.000
+const CORTES = [0, 300, 500, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3250, 3500, 3750, 4000, 4500, 5000];
+// prueba 3: percentiles de la densidad de los radios de la propia ciudad
+const PCTS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
+const opciones = m => m === "t3" ? PCTS.concat([Infinity]) : m === "t2" ? CORTES.concat([Infinity]) : CORTES;
+const MIN_CIUDAD = 0.10;   // universo del percentil: radios con >= 10 % de su superficie en la ciudad
 
 const fmt0 = x => Math.round(x).toLocaleString("en-US");
 const fmt1 = x => x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -331,9 +359,46 @@ const fmt2 = x => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumF
 const tasa = (a, b) => a > 0 && b > 0 ? 100 * (Math.pow(b / a, 1 / 30) - 1) : NaN;
 const $ = id => document.getElementById(id);
 
-const st = { m: "t1", slug: null, anio: 2020, corte: 500, opac: 0.85, fondo: "landsat", fuera: true, perim: true, capa: "res" };
+const etqCorte = k => k === 0 ? "no cut (Angel)" : !isFinite(k) ? "built only" : fmt0(k) + " p/km²";
+const etqOp = (m, v) => m !== "t3" ? etqCorte(v) : v === 0 ? "no cut (Angel)" : !isFinite(v) ? "built only" : `percentile ${v}`;
+const etqCorta = (m, v) => v === 0 ? "none" : !isFinite(v) ? "built" : m === "t3" ? "p" + v : v >= 1000 ? (v / 1000) + "k" : String(v);
+// rotulos del eje que quedan cuando no entran todos
+const CLAVE = m => m === "t3" ? (v => v % 20 === 0 || !isFinite(v)) : (v => [0, 500, 1000, 2000, 3000, 4000, 5000, Infinity].includes(v));
+
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const AMARILLO = "#f2c500", VIOLETA = "#8e44ad", ROJO = "#d7263d", AZUL = "#1f4e79", CELESTE = "#7fb8e6", TEAL = "#2a9d8f";
+const VIOLETA_CL = "#cfa8e0", ROJO_CL = "#f3a9b2";
+// clases del mapa: bd construido denso, bs construido ralo, fd franja densa, fs franja rala,
+// fdr / fsr las mismas en el anillo del borde, fi relleno, fu construido fuera de la ciudad
+const ETQ = {
+  t1: { bd: "built, kept", bs: "built, dropped (sparse tract)", fd: "fringe / captured, kept", fs: "fringe / captured, dropped" },
+  t2: { bd: "built-up (always city)", fd: "fringe / captured, added (dense tract)", fs: "fringe / captured, not added" },
+  t3: { bd: "built-up (always city)", fd: "fringe / captured, added (above the percentile)", fs: "fringe / captured, not added" },
+  cmp: { bd: "built, dense tract · both tests", bs: "built, sparse tract · test 2 only", fd: "fringe / captured, dense tract · both", fs: "fringe / captured, sparse tract · neither" },
+};
+const colores = m => ({ bd: AZUL, bs: m === "t1" || m === "cmp" ? CELESTE : AZUL, fd: VIOLETA, fs: ROJO, fdr: VIOLETA_CL, fsr: ROJO_CL, fi: TEAL, fu: AMARILLO });
+const DENS_CORTES = [300, 500, 1000, 2000, 3000, 4000, 5000];
+const DENS_COL = ["#f0f4fa", "#d6e3f2", "#b3cde8", "#86afd9", "#5b8ec7", "#3a6fae", "#22528e", "#0b2642"];
+const densClase = d => { let i = 0; while (i < DENS_CORTES.length && d >= DENS_CORTES[i]) i++; return i; };
+const AYUDA = {
+  t1: "Keeps the urban extent only in dense tracts. A sparse tract leaves entirely, its built land included.",
+  t2: "Built-up always counts. Fringe and captured land join only in dense tracts.",
+  t3: "Like test 2, but the cut is a percentile of the city's own tract densities, that census.",
+  cmp: "Tests 1 and 2 at the same cut. They differ only in the built land of sparse tracts (light blue).",
+};
+
+// revision visual del 2026-11-15: donde GISD30 marca regadio como construido
+const AVISOS = {
+  rawson: "Not valid: the city is ~30 km of the irrigated lower Chubut valley. GISD30 marks the farm plots (chacras) as built, so built-up and the fill are mostly farmland. Only Trelew proper is right.",
+  mendoza: "Caution: in the Maipú and Guaymallén vineyards GISD30 marks part of the farmland as built, and the fill joins it.",
+  san_juan: "Caution: in the eastern farm belt (Santa Lucía) many small fields show as built-up or filled.",
+  neuquen: "Caution: farm plots (chacras) inside the city and riverside woodland show as built-up or filled.",
+  salta: "Caution: the horticultural plots south of the city show as built-up; the dry bed of the Arenales river is kept as fringe.",
+};
+const st = { m: "t1", slug: null, anio: 2020, corte: 500, pct: 25, opac: 0.85, fondo: "landsat", perim: true, capa: "res",
+             relleno: "no", dist: 200, rellDenso: true, anillo: false, ocultas: new Set() };
 let INDICE = null;
-const RADIOS = {}, CLASE = {}, STATS = {};
+const RADIOS = {}, CLASE = {}, RELLENO = {}, PCT = {};
 
 // ---------- datos ----------
 async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
@@ -342,6 +407,7 @@ async function radios(slug) {
   return RADIOS[slug];
 }
 async function clase(slug, anio) {
+  // R: bits 0-1 codigo de 11, 2-3 distancia al borde, 4-5 hueco, 6-7 share (ver 15_visor_datos.R)
   const k = slug + anio;
   if (!CLASE[k]) {
     const blob = await (await fetch(`${DATOS}${slug}/clase_${anio}.png`)).blob();
@@ -356,27 +422,83 @@ async function clase(slug, anio) {
   return CLASE[k];
 }
 
-// estadisticas de una ciudad por anio y corte, con las reglas de 12, 13 y 14
-function stats(slug) {
-  if (STATS[slug]) return STATS[slug];
-  const R = RADIOS[slug], S = {};
-  for (const a of ANIOS) {
-    const y = R[a], n = y.dens.length;
-    let builtTot = 0, fringeTot = 0, pers = 0;
-    for (let i = 0; i < n; i++) if (y.construido[i] + y.abierto[i] > 0) { builtTot += y.construido[i]; fringeTot += y.abierto[i]; pers += y.personas[i]; }
-    S[a] = { angel: builtTot + fringeTot, builtTot, fringeTot, pers, porCorte: {} };
-    for (const k of CORTES.concat([Infinity])) {
-      let b = 0, f = 0, p = 0;
-      for (let i = 0; i < n; i++) {
-        const u = y.construido[i] + y.abierto[i];
-        if (u > 0 && (k === 0 || y.dens[i] >= k)) { b += y.construido[i]; f += y.abierto[i]; p += y.personas[i]; }
-      }
-      S[a].porCorte[k] = { t1: b + f, t2: builtTot + f, builtDense: b, fringeIn: f, persT1: p, builtSparse: builtTot - b };
-    }
-  }
-  return (STATS[slug] = S);
+// ---------- reglas de relleno ----------
+const DIDX = { 100: 1, 200: 2, 400: 3 };
+function reglaPixel() {
+  // funcion R -> true si el pixel abierto cumple la regla elegida (sin la condicion de densidad)
+  if (st.relleno === "no") return null;
+  const D = DIDX[st.dist], tipo = st.relleno[0], v = Number(st.relleno.slice(1));
+  if (tipo === "h") { const hmax = v / 30; return R => ((R >> 2) & 3) >= D && ((R >> 4) & 3) >= 1 && ((R >> 4) & 3) <= hmax; }
+  const smin = (v - 50) / 10;   // 60 -> 1, 70 -> 2, 80 -> 3
+  return R => ((R >> 2) & 3) >= D && (R >> 6) >= smin;
 }
-const valor = (S, a, k, m) => S[a].porCorte[k][m === "t2" ? "t2" : "t1"];
+async function relleno(slug, anio) {
+  // km2 de franja que la regla rellena en cada radio (fila i, desde 1); null sin regla
+  const regla = reglaPixel();
+  if (!regla) return null;
+  const k = `${slug}|${anio}|${st.relleno}|${st.dist}`;
+  if (!RELLENO[k]) {
+    const cl = await clase(slug, anio), y = RADIOS[slug][anio], n = y.dens.length;
+    const px = new Float64Array(n + 1);
+    let abiertoPx = 0;
+    for (let i = 0; i < cl.code.length; i++) {
+      const R = cl.code[i];
+      if ((R & 3) !== 2 || cl.rid[i] === 0) continue;
+      abiertoPx++;
+      if (regla(R)) px[cl.rid[i]]++;
+    }
+    // km2 por pixel del visor (Web Mercator): se calibra con los km2 de franja de 11
+    let abiertoKm2 = 0; for (let i = 0; i < n; i++) abiertoKm2 += y.abierto[i];
+    const f = abiertoPx > 0 ? abiertoKm2 / abiertoPx : 0;
+    for (let i = 1; i <= n; i++) px[i] = Math.min(px[i] * f, y.abierto[i - 1]);
+    RELLENO[k] = px;
+  }
+  return RELLENO[k];
+}
+async function prepararRelleno(slug) {
+  const r = {};
+  for (const a of ANIOS) r[a] = await relleno(slug, a);
+  return r;
+}
+
+// ---------- calculos ----------
+function corteP(slug, anio, p) {
+  // percentil p (tipo 7, como quantile() de R) de la densidad de los radios con >= 10 % en la ciudad
+  if (p === 0) return 0;
+  if (!isFinite(p)) return Infinity;
+  const k = slug + anio;
+  if (!PCT[k]) {
+    const y = RADIOS[slug][anio], v = [];
+    for (let i = 0; i < y.dens.length; i++) {
+      const u = y.construido[i] + y.abierto[i];
+      if (u > 0 && y.dens[i] >= 0 && u >= MIN_CIUDAD * y.area[i]) v.push(y.dens[i]);
+    }
+    PCT[k] = v.sort((a, b) => a - b);
+  }
+  const x = PCT[k]; if (!x.length) return 0;
+  const h = (x.length - 1) * p / 100, lo = Math.floor(h);
+  return lo + 1 < x.length ? x[lo] + (h - lo) * (x[lo + 1] - x[lo]) : x[lo];
+}
+const corteDe = (slug, anio, m, v) => m === "t3" ? corteP(slug, anio, v) : v;
+const opcionActual = () => st.m === "t3" ? st.pct : st.corte;
+const corteActual = () => corteDe(st.slug, st.anio, st.m, opcionActual());
+
+function calc(slug, anio, k, F) {
+  // una ciudad, un anio, un corte absoluto k; F = km2 rellenos por radio (o null)
+  const y = RADIOS[slug][anio], n = y.dens.length;
+  let builtTot = 0, fringeTot = 0, pers = 0, b = 0, f = 0, p = 0, fill = 0;
+  for (let i = 0; i < n; i++) {
+    const u = y.construido[i] + y.abierto[i];
+    if (u <= 0) continue;
+    const denso = k === 0 || y.dens[i] >= k;
+    const fi = F && (!st.rellDenso || denso) ? F[i + 1] : 0;
+    builtTot += y.construido[i] + fi; fringeTot += y.abierto[i] - fi; pers += y.personas[i]; fill += fi;
+    if (denso) { b += y.construido[i] + fi; f += y.abierto[i] - fi; p += y.personas[i]; }
+  }
+  return { angel: builtTot + fringeTot, builtTot, fringeTot, pers, fill, t1: b + f, t2: builtTot + f,
+           builtDense: b, fringeIn: f, persT1: p, builtSparse: builtTot - b };
+}
+const valorM = (c, m) => m === "t1" ? c.t1 : c.t2;   // t2 y t3 tienen la misma forma
 
 // ---------- mapa ----------
 const map = L.map("mapa", { zoomControl: true, preferCanvas: true }).setView([-34.6, -64], 5);
@@ -393,11 +515,12 @@ let base = null, capaLandsat = null, capaClase = null, capaPerim = null, lienzo 
 
 function ciudad() { return INDICE.ciudades.find(c => c.slug === st.slug); }
 
+function ponerAviso() { $("aviso").textContent = AVISOS[st.slug] || ""; }
 function ponerFondo() {
   const c = ciudad(), tiene = c && c.landsat.includes(st.anio);
   if (capaLandsat) { map.removeLayer(capaLandsat); capaLandsat = null; }
   // Landsat: si no hay compuesto para ese anio, fondo vacio (no se sustituye por otra imagen)
-  const tile = st.fondo === "landsat" ? null : st.fondo;   // con Landsat, solo la imagen
+  const tile = st.fondo === "landsat" ? null : st.fondo;
   if (base && base !== BASES[tile]) { map.removeLayer(base); base = null; }
   if (tile && !base) base = BASES[tile].addTo(map);
   if (st.fondo === "landsat" && tiene) {
@@ -408,26 +531,38 @@ function ponerFondo() {
     : st.fondo === "esri" ? "Present-day imagery, not the selected year." : "";
 }
 
-function densos() {
-  // 1 si el radio (fila i, desde 1) toca la ciudad y esta en o sobre el corte
-  const R = RADIOS[st.slug][st.anio], k = st.corte, n = R.dens.length, denso = new Uint8Array(n + 1);
+function densos(k) {
+  // 1 si el radio (fila i, desde 1) toca la ciudad y esta en o sobre el corte k
+  const R = RADIOS[st.slug][st.anio], n = R.dens.length, denso = new Uint8Array(n + 1);
   for (let i = 0; i < n; i++) denso[i + 1] = (R.construido[i] + R.abierto[i] > 0) && (k === 0 || R.dens[i] >= k) ? 1 : 0;
   return denso;
 }
 
+function clasePixel(R, dn, regla, D) {
+  // clave de la clase de un pixel segun metodo, corte y relleno
+  const c = R & 3;
+  if (c === 1) return dn ? "bd" : "bs";
+  if (c === 3) return "fu";
+  if (c !== 2) return null;
+  if (regla && regla(R) && (!st.rellDenso || dn)) return dn || (st.m === "t2" || st.m === "t3") ? "fi" : "bs";
+  const anillo = st.anillo && ((R >> 2) & 3) < D;
+  return dn ? (anillo ? "fdr" : "fd") : (anillo ? "fsr" : "fs");
+}
+
 function pintar(cl) {
-  // la clase de cada pixel de la ciudad segun el metodo y el corte
-  const k = st.corte, denso = densos();
-  const pal = CLASES[st.m].col.map(hex), gris = hex(GRIS);
+  const k = corteActual(), denso = densos(k), regla = reglaPixel(), D = DIDX[st.dist];
+  const COL = colores(st.m), pal = {};
+  for (const [c, h] of Object.entries(COL)) pal[c] = st.ocultas.has(c) ? null : hex(h);
+  if (st.ocultas.has("fd")) pal.fdr = null;
+  if (st.ocultas.has("fs")) pal.fsr = null;
   if (!lienzo || lienzo.width !== cl.w || lienzo.height !== cl.h) {
     lienzo = document.createElement("canvas"); lienzo.width = cl.w; lienzo.height = cl.h; lienzo.className = "pixelado";
   }
   const cx = lienzo.getContext("2d"), img = cx.createImageData(cl.w, cl.h), d = img.data, rid = cl.rid;
   for (let i = 0, j = 0; i < cl.code.length; i++, j += 4) {
-    const c = cl.code[i];
-    let col = null;
-    if (c === 1 || c === 2) col = pal[(c === 1 ? 0 : 2) + (k === 0 || denso[rid[i]] === 1 ? 0 : 1)];
-    else if (c === 3 && st.fuera) col = gris;
+    const R = cl.code[i];
+    if (R === 0) continue;
+    const c = clasePixel(R, k === 0 || denso[rid[i]] === 1, regla, D), col = c && pal[c];
     if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
   }
   cx.putImageData(img, 0, 0);
@@ -446,25 +581,27 @@ async function geo(slug, anio) {
 function estiloRadio(f) {
   const R = RADIOS[st.slug][st.anio], j = f.properties.i - 1, u = R.construido[j] + R.abierto[j];
   if (st.capa === "lim") return { color: "#1e1e1e", weight: 0.7, opacity: 0.75, fill: true, fillOpacity: 0 };
-  // como en los mapas de 12: un radio con menos del 10 % de su superficie en la ciudad no se
-  // rellena, porque su densidad sale de un retazo de ciudad que carga con todos sus habitantes
-  const lleno = u > 0 && u >= 0.1 * R.area[j];
+  // un radio con menos del 10 % de su superficie en la ciudad no se rellena: su densidad sale
+  // de un retazo de ciudad que carga con todos sus habitantes
+  const lleno = u > 0 && u >= MIN_CIUDAD * R.area[j];
   return { color: "#ffffff", weight: 0.6, opacity: 0.9, fill: true, fillColor: lleno ? DENS_COL[densClase(R.dens[j])] : "#000",
-           fillOpacity: !lleno ? 0 : st.opac * (st.corte === 0 || densoActual[j + 1] ? 1 : 0.35) };
+           fillOpacity: !lleno ? 0 : st.opac * (corteActual() === 0 || densoActual[j + 1] ? 1 : 0.35) };
 }
 function textoRadio(j) {
-  const R = RADIOS[st.slug][st.anio], u = R.construido[j] + R.abierto[j];
+  const R = RADIOS[st.slug][st.anio], u = R.construido[j] + R.abierto[j], k = corteActual();
   let h = `Tract <b>${R.cod[j]}</b> · census ${CENSO[st.anio]}<br>${fmt0(R.personas[j])} persons · ${fmt2(R.area[j])} km²`;
   if (u > 0) {
     h += `<br>${fmt2(R.construido[j])} km² built + ${fmt2(R.abierto[j])} km² fringe in the city (${fmt0(100 * u / R.area[j])} % of the tract)`;
     h += `<br>Density on urbanized land: <b>${fmt0(R.dens[j])}</b> p/km²`;
-    if (st.corte > 0) h += ` · ${R.dens[j] >= st.corte ? "dense" : "sparse"} at ${etqCorte(st.corte)}`;
+    if (k > 0 && isFinite(k)) h += ` · ${R.dens[j] >= k ? "dense" : "sparse"} at ${fmt0(k)} p/km²`;
+    const F = RELLENO[`${st.slug}|${st.anio}|${st.relleno}|${st.dist}`];
+    if (F && F[j + 1] > 0) h += `<br>Fill rule: ${fmt2(F[j + 1])} km² of its fringe is a gap the rule fills`;
   } else h += "<br>No city land in this tract";
   return h + `<br>Gross density: ${fmt0(R.personas[j] / R.area[j])} p/km²`;
 }
 async function ponerRadios() {
   if (st.capa === "res") { if (capaRadios) { map.removeLayer(capaRadios); capaRadios = null; radiosClave = null; } return; }
-  densoActual = densos();
+  densoActual = densos(corteActual());
   const clave = st.slug + st.anio;
   if (radiosClave !== clave) {
     const g = await geo(st.slug, st.anio);
@@ -479,12 +616,14 @@ async function ponerRadios() {
   } else capaRadios.setStyle(estiloRadio);
 }
 
+let FILL = null;   // km2 rellenos por radio, por anio, de la ciudad actual
 async function dibujar(encuadrar) {
   const c = ciudad();
   $("cargando").style.display = "block";
   try {
     await radios(st.slug);
     const cl = await clase(st.slug, st.anio);
+    FILL = await prepararRelleno(st.slug);
     const cv = pintar(cl);
     if (ciudadActual !== st.slug || !capaClase) {
       if (capaClase) map.removeLayer(capaClase);
@@ -494,18 +633,29 @@ async function dibujar(encuadrar) {
       capaPerim = L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#111", weight: 1.6, fill: false, dashArray: "5 4" } });
       ciudadActual = st.slug;
     }
-    if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
-    capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
-    await ponerRadios();
     if (encuadrar) map.fitBounds(c.limites, { padding: [10, 10] });
     ponerFondo();
-    leyenda();
-    panelDerecho();
-    guardarHash();
+    ponerAviso();
+    await rapido();
   } catch (e) {
     console.error(e);
     alert("Could not load the data. If you opened the file directly, serve the folder instead (see README): " + e.message);
   } finally { $("cargando").style.display = "none"; }
+}
+async function rapido() {
+  // lo que cambia con el corte o las capas, sin volver a cargar datos
+  pintar(CLASE[st.slug + st.anio]);
+  if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
+  capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
+  await ponerRadios();
+  ayudaCorte(); leyenda(); panelDerecho(); guardarHash();
+}
+let pedido = null;
+function cambiarOpcion(v) {
+  // desde los selectores o los graficos: fija el corte y redibuja en el proximo cuadro
+  if (st.m === "t3") st.pct = v; else st.corte = v;
+  $("corte").value = String(v);
+  if (!pedido) pedido = requestAnimationFrame(() => { pedido = null; rapido(); });
 }
 
 map.on("click", e => {
@@ -515,42 +665,67 @@ map.on("click", e => {
   const a = L.CRS.EPSG3857.project(L.latLng(c.limites[0])), b = L.CRS.EPSG3857.project(L.latLng(c.limites[1]));
   const px = Math.floor((p.x - a.x) / (b.x - a.x) * cl.w), py = Math.floor((b.y - p.y) / (b.y - a.y) * cl.h);
   if (px < 0 || py < 0 || px >= cl.w || py >= cl.h) return;
-  const i = py * cl.w + px, code = cl.code[i], r = cl.rid[i];
+  const i = py * cl.w + px, R = cl.code[i], code = R & 3, r = cl.rid[i];
   const tipo = ["outside the city", "built-up of the city", "fringe / captured of the city", "built, outside the city"][code];
-  L.popup().setLatLng(e.latlng).setContent(`<b>Pixel: ${tipo}</b><br>` + (r > 0 ? textoRadio(r - 1) : "No census tract here")).openOn(map);
+  let extra = "";
+  if (code === 2) {
+    const dcl = ["≤ 100 m", "100–200 m", "200–400 m", "> 400 m"][(R >> 2) & 3];
+    const h = (R >> 4) & 3, s = ["< 60 %", "60–69 %", "70–79 %", "≥ 80 %"][R >> 6];
+    extra = `<br>From the city edge: ${dcl} · gap: ${h ? "closed at " + 30 * h + " m" : "not a narrow gap"} · built within 150 m: ${s}`;
+  }
+  L.popup().setLatLng(e.latlng).setContent(`<b>Pixel: ${tipo}</b>${extra}<br>` + (r > 0 ? textoRadio(r - 1) : "No census tract here")).openOn(map);
 });
 
 // ---------- panel izquierdo ----------
+function ayudaCorte() {
+  if (st.m === "t3") {
+    $("corte-rot").innerHTML = "<b>4</b>Percentile of the city's tract density";
+    const k = corteActual();
+    $("corte-ayuda").textContent = st.pct === 0 ? "No cut: the Angel extent." : !isFinite(st.pct) ? "Built-up only."
+      : `In ${st.anio} (census ${CENSO[st.anio]}) this is ${fmt0(k)} persons per km² urbanized. Fringe of tracts below it is left out.`;
+  } else {
+    $("corte-rot").innerHTML = "<b>4</b>Density threshold";
+    $("corte-ayuda").textContent = "Persons per km² of urbanized land (built + fringe + captured) in the census tract.";
+  }
+}
 function leyenda() {
-  const C = CLASES[st.m];
+  const E = ETQ[st.m], COL = colores(st.m);
+  const item = (clave, color, texto) => `<li><label><input type="checkbox" data-clase="${clave}" ${st.ocultas.has(clave) ? "" : "checked"}><i style="background:${color}"></i>${texto}</label></li>`;
   let h = "";
   if (st.capa === "dens") {
     const lim = [0].concat(DENS_CORTES);
     h += `<li style="color:var(--ink)">Tract density, persons / km² urbanized</li>`;
     DENS_COL.forEach((c, i) => h += `<li><i style="background:${c}"></i>${i < DENS_CORTES.length ? fmt0(lim[i]) + " – " + fmt0(DENS_CORTES[i]) : "≥ " + fmt0(lim[i])}</li>`);
-    if (st.corte > 0) h += `<li><i style="background:#86afd9;opacity:.37"></i>faded: below ${etqCorte(st.corte)}</li>`;
-    h += `<li><i style="background:none;border:1.5px solid #999"></i>tract limit; no fill if under 10 % of the tract is city (its density comes from a sliver)</li>`;
+    if (corteActual() > 0) h += `<li><i style="background:#86afd9;opacity:.37"></i>faded: below the threshold</li>`;
+    h += `<li><i style="background:none;border:1.5px solid #999"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
   } else {
-    C.col.forEach((c, i) => { if (C.etq[i]) h += `<li><i style="background:${c}"></i>${C.etq[i]}</li>`; });
-    if (st.fuera) h += `<li><i style="background:${GRIS}"></i>built outside the city</li>`;
+    for (const c of ["bd", "bs", "fd", "fs"]) if (E[c]) h += item(c, COL[c], E[c]);
+    if (st.anillo) h += `<li><i style="background:${VIOLETA_CL}"></i><i style="background:${ROJO_CL};margin-left:-4px"></i>same, edge ring (≤ ${st.dist} m from the city edge)</li>`;
+    if (st.relleno !== "no") h += item("fi", TEAL, "open land filled as built-up (fill rule)");
+    h += item("fu", AMARILLO, "built outside the city");
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid #141414"></i>census tract limit</li>`;
   }
-  if (st.perim) h += `<li><i style="background:none;border:1.5px dashed #111"></i>analysis perimeter</li>`;
+  h += `<li><label><input type="checkbox" id="perim" ${st.perim ? "checked" : ""}><i style="background:none;border:1.5px dashed #111"></i>analysis perimeter</label></li>`;
   $("leyenda").innerHTML = h;
+  $("leyenda").querySelectorAll("input[data-clase]").forEach(x => x.onchange = () => {
+    if (x.checked) st.ocultas.delete(x.dataset.clase); else st.ocultas.add(x.dataset.clase);
+    rapido();
+  });
+  $("perim").onchange = e => { st.perim = e.target.checked; rapido(); };
 }
 function llenarCortes(sel, m, actual) {
-  sel.innerHTML = cortesDe(m).map(k => `<option value="${k}" ${k === actual ? "selected" : ""}>${etqCorte(k)}</option>`).join("");
+  sel.innerHTML = opciones(m).map(v => `<option value="${v}" ${v === actual ? "selected" : ""}>${etqOp(m, v)}</option>`).join("");
 }
 function ponerMetodo(m) {
   st.m = m;
   document.querySelectorAll("#metodo button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
   $("metodo-ayuda").textContent = AYUDA[m];
-  if (!cortesDe(m).includes(st.corte)) st.corte = 500;
-  llenarCortes($("corte"), m, st.corte);
+  if (m !== "t3" && !opciones(m).includes(st.corte)) st.corte = 500;
+  llenarCortes($("corte"), m, opcionActual());
 }
 
 // ---------- graficos ----------
-function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170 }) {
+function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170, clave = null, elegir = null }) {
   const W = el.clientWidth || 320, H = alto, m = { l: 40, r: 8, t: 8, b: 24 };
   const vals = series.flatMap(s => s.v.filter(Number.isFinite)).concat(ref.map(r => r.y).filter(Number.isFinite));
   let y0 = Math.min(ymin, ...vals), y1 = Math.max(...vals); if (!(y1 > y0)) y1 = y0 + 1;
@@ -559,10 +734,10 @@ function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170
   const Y = v => m.t + (y1 - v) / (y1 - y0) * (H - m.t - m.b);
   const ticks = []; const paso = niceStep((y1 - y0) / 4);
   for (let t = Math.ceil(y0 / paso) * paso; t <= y1; t += paso) ticks.push(t);
-  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" style="cursor:${elegir ? "pointer" : "default"}">`;
   ticks.forEach(t => s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="#ecebe6"/><text x="${m.l - 5}" y="${Y(t) + 3.5}" text-anchor="end">${fmt(t)}</text>`);
-  const apretado = (W - m.l - m.r) / Math.max(1, cats.length - 1) < 34;
-  cats.forEach((c, i) => { if (!(apretado && ["3.25k", "3.75k", "4.5k"].includes(c))) s += `<text x="${X(i)}" y="${H - 7}" text-anchor="middle">${c}</text>`; });
+  const apretado = (W - m.l - m.r) / Math.max(1, cats.length - 1) < 30;
+  cats.forEach((c, i) => { if (!apretado || !clave || clave[i]) s += `<text x="${X(i)}" y="${H - 7}" text-anchor="middle">${c}</text>`; });
   if (actual >= 0) s += `<line x1="${X(actual)}" x2="${X(actual)}" y1="${m.t}" y2="${H - m.b}" stroke="#c4622d" stroke-width="1.2" stroke-dasharray="3 3"/>`;
   ref.forEach(r => { if (Number.isFinite(r.y)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(r.y)}" y2="${Y(r.y)}" stroke="${r.c}" stroke-width="1.2" stroke-dasharray="1.5 3"/>`; });
   series.forEach(se => {
@@ -574,9 +749,13 @@ function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170
   s += `<rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg><div class="tip"></div>`;
   el.innerHTML = s;
   const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), cruz = el.querySelector(".cruz");
-  svg.addEventListener("mousemove", ev => {
+  const indice = ev => {
     const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
-    const i = Math.max(0, Math.min(cats.length - 1, Math.round((x - m.l) / ((W - m.l - m.r) / (cats.length - 1)))));
+    return Math.max(0, Math.min(cats.length - 1, Math.round((x - m.l) / ((W - m.l - m.r) / (cats.length - 1)))));
+  };
+  svg.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(), i = indice(ev);
+    if (elegir && (ev.buttons & 1) && i !== actual) { elegir(i); return; }
     cruz.setAttribute("x1", X(i)); cruz.setAttribute("x2", X(i)); cruz.style.display = "";
     tip.innerHTML = `<b>${cats[i]}</b>` + series.map(se => `<br><i style="background:${se.c}"></i>${se.n}: ${Number.isFinite(se.v[i]) ? fmt(se.v[i]) : "–"}`).join("")
       + ref.map(rf => `<br><i style="background:${rf.c}"></i>${rf.n}: ${fmt(rf.y)}`).join("");
@@ -584,33 +763,89 @@ function grafico(el, { cats, series, actual, fmt, ymin = 0, ref = [], alto = 170
     const px = X(i) * r.width / W;
     tip.style.left = (px > r.width / 2 ? px - tip.offsetWidth - 10 : px + 10) + "px"; tip.style.top = "6px";
   });
+  if (elegir) svg.addEventListener("mousedown", ev => { ev.preventDefault(); const i = indice(ev); if (i !== actual) elegir(i); });
   svg.addEventListener("mouseleave", () => { tip.style.display = "none"; cruz.style.display = "none"; });
 }
 function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
 
+function histograma(el) {
+  // densidad de los radios con >= 10 % en la ciudad, escala log; la linea es el corte y se arrastra
+  const y = RADIOS[st.slug][st.anio], W = el.clientWidth || 320, H = 150, m = { l: 34, r: 8, t: 8, b: 24 };
+  const L0 = 1, L1 = 5, NB = 40, cuenta = new Array(NB).fill(0), univ = [];
+  for (let i = 0; i < y.dens.length; i++) {
+    const u = y.construido[i] + y.abierto[i];
+    if (u > 0 && y.dens[i] > 0 && u >= MIN_CIUDAD * y.area[i]) {
+      univ.push(y.dens[i]);
+      cuenta[Math.max(0, Math.min(NB - 1, Math.floor((Math.log10(y.dens[i]) - L0) / (L1 - L0) * NB)))]++;
+    }
+  }
+  const mx = Math.max(1, ...cuenta), X = l => m.l + (l - L0) / (L1 - L0) * (W - m.l - m.r), Y = v => m.t + (1 - v / mx) * (H - m.t - m.b);
+  const k = corteActual(), bw = (W - m.l - m.r) / NB;
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" style="cursor:ew-resize">`;
+  [10, 100, 300, 1000, 3000, 10000, 30000].forEach(t => s += `<line x1="${X(Math.log10(t))}" x2="${X(Math.log10(t))}" y1="${m.t}" y2="${H - m.b}" stroke="#ecebe6"/><text x="${X(Math.log10(t))}" y="${H - 7}" text-anchor="middle">${t >= 1000 ? t / 1000 + "k" : t}</text>`);
+  cuenta.forEach((c, i) => {
+    const l = L0 + (i + 0.5) / NB * (L1 - L0), denso = k === 0 || Math.pow(10, l) >= k;
+    if (c) s += `<rect x="${m.l + i * bw + 1}" y="${Y(c)}" width="${bw - 2}" height="${H - m.b - Y(c)}" rx="1.5" fill="${COL_ANIO[st.anio]}" opacity="${denso ? 1 : 0.3}"/>`;
+  });
+  s += `<text x="${m.l - 5}" y="${m.t + 8}" text-anchor="end">${mx}</text><text x="${m.l - 5}" y="${H - m.b}" text-anchor="end">0</text>`;
+  if (k > 0 && isFinite(k)) s += `<line x1="${X(Math.log10(k))}" x2="${X(Math.log10(k))}" y1="${m.t}" y2="${H - m.b}" stroke="#c4622d" stroke-width="2"/>`;
+  s += `<rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg><div class="tip"></div>`;
+  el.innerHTML = s;
+  const below = univ.filter(d => d < k).length;
+  $("g4-sub").textContent = `${st.anio} (census ${CENSO[st.anio]}): ${fmt0(univ.length)} tracts with at least 10 % of their area in the city, persons / km² urbanized, log scale.` +
+    (k > 0 && isFinite(k) ? ` ${fmt0(below)} (${fmt0(100 * below / Math.max(1, univ.length))} %) are below ${fmt0(k)} p/km².` : "");
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tip");
+  const elegir = ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    const d = Math.pow(10, L0 + (x - m.l) / (W - m.l - m.r) * (L1 - L0));
+    if (st.m === "t3") {
+      const p = 100 * univ.filter(v => v < d).length / Math.max(1, univ.length);
+      return PCTS.reduce((a, b) => Math.abs(b - p) < Math.abs(a - p) ? b : a);
+    }
+    return CORTES.reduce((a, b) => Math.abs(Math.log(Math.max(b, 1)) - Math.log(d)) < Math.abs(Math.log(Math.max(a, 1)) - Math.log(d)) ? b : a);
+  };
+  const mover = ev => { const v = elegir(ev); if (v !== opcionActual()) cambiarOpcion(v); };
+  svg.addEventListener("mousedown", ev => { ev.preventDefault(); mover(ev); });
+  svg.addEventListener("mousemove", ev => {
+    if (ev.buttons & 1) { mover(ev); return; }
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    const d = Math.pow(10, L0 + (x - m.l) / (W - m.l - m.r) * (L1 - L0));
+    tip.innerHTML = `${fmt0(d)} p/km² · ${fmt0(100 * univ.filter(v => v < d).length / Math.max(1, univ.length))} % of the tracts below`;
+    tip.style.display = "block"; const px = ev.clientX - r.left;
+    tip.style.left = (px > r.width / 2 ? px - tip.offsetWidth - 10 : px + 10) + "px"; tip.style.top = "6px";
+  });
+  svg.addEventListener("mouseleave", () => tip.style.display = "none");
+}
+
 function panelDerecho() {
-  const c = ciudad(), S = stats(st.slug), a = st.anio, k = st.corte, m = st.m;
-  const ks = cortesDe(m), cats = ks.map(etqCorta), idx = ks.indexOf(k), pc = S[a].porCorte[k];
-  $("der-titulo").textContent = `${c.nombre} · ${a} (census ${CENSO[a]}) · ${etqCorte(k)}`;
-  const cifra = (t, v, e) => `<div class="cifra"><span>${t}</span><b>${v}</b>${e ? `<em>${e}</em>` : ""}</div>`;
-  let h = cifra("Angel extent", fmt1(S[a].angel) + " km²", fmt0(S[a].pers) + " persons in its tracts");
+  const c = ciudad(), m = st.m, a = st.anio, ops = opciones(m), v = opcionActual(), idx = ops.indexOf(v);
+  const cats = ops.map(o => etqCorta(m, o)), clave = ops.map(CLAVE(m));
+  const C = (a2, o, mm = m) => calc(st.slug, a2, corteDe(st.slug, a2, mm, o), FILL && FILL[a2]);
+  const A = calc(st.slug, a, 0, FILL && FILL[a]), pc = C(a, v), k = corteActual();
+  const elegir = i => cambiarOpcion(ops[i]);
+  $("der-titulo").textContent = `${c.nombre} · ${a} (census ${CENSO[a]}) · ${etqOp(m, v)}${m === "t3" && k > 0 && isFinite(k) ? " = " + fmt0(k) + " p/km²" : ""}`;
+  const cifra = (t, x, e) => `<div class="cifra"><span>${t}</span><b>${x}</b>${e ? `<em>${e}</em>` : ""}</div>`;
+  const g = mm => fmt2(tasa(valorM(C(1990, v, mm), mm), valorM(C(2020, v, mm), mm)));
+  const gAng = fmt2(tasa(calc(st.slug, 1990, 0, null).angel, calc(st.slug, 2020, 0, null).angel));
+  let h = cifra("Angel extent", fmt1(A.angel) + " km²", fmt0(A.pers) + " persons in its tracts");
   if (m === "t1") {
-    h += cifra("Test 1 patch", fmt1(pc.t1) + " km²", fmt1(100 * pc.t1 / S[a].angel) + " % of the extent");
-    h += cifra("Persons kept", fmt1(100 * pc.persT1 / S[a].pers) + " %", fmt0(pc.persT1) + " persons");
-    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t1"), valor(S, 2020, k, "t1"))) + " %/yr", "Angel: " + fmt2(tasa(S[1990].angel, S[2020].angel)) + " %/yr");
-  } else if (m === "t2") {
-    h += cifra("Test 2 city", fmt1(pc.t2) + " km²", fmt1(100 * pc.t2 / S[a].angel) + " % of the extent");
-    h += cifra("Fringe added", fmt1(S[a].fringeTot > 0 ? 100 * pc.fringeIn / S[a].fringeTot : 0) + " %", fmt1(pc.fringeIn) + " of " + fmt1(S[a].fringeTot) + " km²");
-    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t2"), valor(S, 2020, k, "t2"))) + " %/yr", "Angel: " + fmt2(tasa(S[1990].angel, S[2020].angel)) + " %/yr");
+    h += cifra("Test 1 patch", fmt1(pc.t1) + " km²", fmt1(100 * pc.t1 / A.angel) + " % of the extent");
+    h += cifra("Persons kept", fmt1(100 * pc.persT1 / A.pers) + " %", fmt0(pc.persT1) + " persons");
+    h += cifra("Growth 1990–2020", g("t1") + " %/yr", "Angel: " + gAng + " %/yr");
+  } else if (m === "t2" || m === "t3") {
+    h += cifra(m === "t2" ? "Test 2 city" : "Test 3 city", fmt1(pc.t2) + " km²", fmt1(100 * pc.t2 / A.angel) + " % of the extent");
+    h += cifra("Fringe added", fmt1(pc.fringeTot > 0 ? 100 * pc.fringeIn / pc.fringeTot : 0) + " %", fmt1(pc.fringeIn) + " of " + fmt1(pc.fringeTot) + " km²");
+    h += cifra("Growth 1990–2020", g(m) + " %/yr", "Angel: " + gAng + " %/yr");
   } else {
     h += cifra("Test 1 · Test 2", fmt1(pc.t1) + " · " + fmt1(pc.t2), "km²");
-    h += cifra("Built in sparse tracts", fmt1(pc.builtSparse) + " km²", fmt1(S[a].builtTot > 0 ? 100 * pc.builtSparse / S[a].builtTot : 0) + " % of built-up · test 2 only");
-    h += cifra("Growth 1990–2020", fmt2(tasa(valor(S, 1990, k, "t1"), valor(S, 2020, k, "t1"))) + " · " + fmt2(tasa(valor(S, 1990, k, "t2"), valor(S, 2020, k, "t2"))), "%/yr, test 1 · test 2");
+    h += cifra("Built in sparse tracts", fmt1(pc.builtSparse) + " km²", fmt1(pc.builtTot > 0 ? 100 * pc.builtSparse / pc.builtTot : 0) + " % of built-up · test 2 only");
+    h += cifra("Growth 1990–2020", g("t1") + " · " + g("t2"), "%/yr, test 1 · test 2");
   }
+  if (FILL) h += cifra("Filled as built-up", fmt1(pc.fill) + " km²", `${fmt1(pc.fringeTot + pc.fill > 0 ? 100 * pc.fill / (pc.fringeTot + pc.fill) : 0)} % of the open land · built-up ${fmt1(pc.builtTot - pc.fill)} → ${fmt1(pc.builtTot)} km²`);
   $("cifras").innerHTML = h;
 
   // 1: km2 por corte, un trazo por anio
-  const serie = (mm, a2) => ks.map(kk => valor(S, a2, kk, mm));
+  const serie = (mm, a2) => ops.map(o => valorM(C(a2, o, mm), mm));
   let series = [];
   if (m === "cmp") {
     ANIOS.forEach(a2 => series.push({ n: `${a2} test 2`, c: COL_ANIO[a2], v: serie("t2", a2), w: a2 === a ? 3 : 1.6 }));
@@ -618,60 +853,64 @@ function panelDerecho() {
     $("g1-sub").textContent = "km². Solid: test 2; dashed: test 1. The gap is built-up land in sparse tracts.";
   } else {
     ANIOS.forEach(a2 => series.push({ n: String(a2), c: COL_ANIO[a2], v: serie(m, a2), w: a2 === a ? 3 : 1.6 }));
-    $("g1-sub").textContent = "km², one line per year; the selected year is thicker. Orange line: current threshold.";
+    $("g1-sub").textContent = `km², one line per year; the selected year is thicker. Orange line: current ${m === "t3" ? "percentile" : "threshold"}.`;
   }
-  grafico($("g1"), { cats, series, actual: idx, fmt: fmt0 });
+  grafico($("g1"), { cats, series, actual: idx, fmt: fmt0, clave, elegir });
 
   // 2: segun el metodo
   if (m === "t1") {
     $("g2-tit").textContent = "Persons kept vs extent kept";
     $("g2-sub").textContent = `${a}. % of the persons of the city's tracts, and % of the Angel extent.`;
-    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: [
-      { n: "persons kept", c: "#1f4e79", v: ks.map(kk => 100 * S[a].porCorte[kk].persT1 / S[a].pers), w: 2.4 },
-      { n: "extent kept", c: "#c4622d", v: ks.map(kk => 100 * S[a].porCorte[kk].t1 / S[a].angel), w: 2.4 } ] });
-  } else if (m === "t2") {
+    grafico($("g2"), { cats, actual: idx, fmt: x => fmt0(x) + "%", clave, elegir, series: [
+      { n: "persons kept", c: "#1f4e79", v: ops.map(o => { const r = C(a, o); return 100 * r.persT1 / r.pers; }), w: 2.4 },
+      { n: "extent kept", c: "#c4622d", v: ops.map(o => { const r = C(a, o); return 100 * r.t1 / r.angel; }), w: 2.4 } ] });
+  } else if (m === "t2" || m === "t3") {
     $("g2-tit").textContent = "Share of the fringe that joins the city";
-    $("g2-sub").textContent = "% of fringe + captured land in tracts at or above the threshold, by year.";
-    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
-      v: ks.map(kk => S[a2].fringeTot > 0 ? 100 * S[a2].porCorte[kk].fringeIn / S[a2].fringeTot : NaN) })) });
+    $("g2-sub").textContent = `% of fringe + captured land in tracts at or above the ${m === "t3" ? "percentile" : "threshold"}, by year.`;
+    grafico($("g2"), { cats, actual: idx, fmt: x => fmt0(x) + "%", clave, elegir, series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
+      v: ops.map(o => { const r = C(a2, o); return r.fringeTot > 0 ? 100 * r.fringeIn / r.fringeTot : NaN; }) })) });
   } else {
     $("g2-tit").textContent = "Built-up land in sparse tracts";
     $("g2-sub").textContent = "% of all built-up land that only test 2 keeps, by year.";
-    grafico($("g2"), { cats, actual: idx, fmt: v => fmt0(v) + "%", series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
-      v: ks.map(kk => S[a2].builtTot > 0 ? 100 * S[a2].porCorte[kk].builtSparse / S[a2].builtTot : NaN) })) });
+    grafico($("g2"), { cats, actual: idx, fmt: x => fmt0(x) + "%", clave, elegir, series: ANIOS.map(a2 => ({ n: String(a2), c: COL_ANIO[a2], w: a2 === a ? 3 : 1.6,
+      v: ops.map(o => { const r = C(a2, o); return r.builtTot > 0 ? 100 * r.builtSparse / r.builtTot : NaN; }) })) });
   }
 
   // 3: crecimiento por corte
-  const ang = tasa(S[1990].angel, S[2020].angel);
-  const crec = mm => ks.map(kk => tasa(valor(S, 1990, kk, mm), valor(S, 2020, kk, mm)));
+  const ang = tasa(calc(st.slug, 1990, 0, null).angel, calc(st.slug, 2020, 0, null).angel);
+  const crec = mm => ops.map(o => tasa(valorM(C(1990, o, mm), mm), valorM(C(2020, o, mm), mm)));
   const s3 = m === "cmp" ? [{ n: "test 1", c: "#c4622d", v: crec("t1"), w: 2.4 }, { n: "test 2", c: "#1f4e79", v: crec("t2"), w: 2.4 }]
-                         : [{ n: m === "t1" ? "test 1" : "test 2", c: "#1f4e79", v: crec(m), w: 2.4 }];
-  grafico($("g3"), { cats, actual: idx, fmt: fmt2, ymin: Math.min(0, ang), series: s3, ref: [{ n: "Angel, no cut", y: ang, c: "#0b0b0b" }] });
+                         : [{ n: { t1: "test 1", t2: "test 2", t3: "test 3" }[m], c: "#1f4e79", v: crec(m), w: 2.4 }];
+  grafico($("g3"), { cats, actual: idx, fmt: fmt2, ymin: Math.min(0, ang), series: s3, ref: [{ n: "Angel, no cut", y: ang, c: "#0b0b0b" }], clave, elegir });
+
+  histograma($("g4"));
 }
 
 // ---------- resultados ----------
 let orden = { col: "nombre", asc: true };
 async function resultados() {
-  const m = $("r-metodo").value, k = Number($("r-corte").value);
+  const m = $("r-metodo").value, v = Number($("r-corte").value);
   const faltan = INDICE.ciudades.filter(c => !RADIOS[c.slug]);
   if (faltan.length) {
     $("r-estado").textContent = `Loading ${faltan.length} agglomerations…`;
     await Promise.all(faltan.map(c => radios(c.slug)));
   }
-  $("r-estado").textContent = "";
+  $("r-estado").textContent = "Without the fill rule.";
   const filas = INDICE.ciudades.map(c => {
-    const S = stats(c.slug), v90 = valor(S, 1990, k, m), v20 = valor(S, 2020, k, m);
-    return { slug: c.slug, nombre: c.nombre, a90: S[1990].angel, a20: S[2020].angel, v90, v20,
-             pct: 100 * v20 / S[2020].angel,
-             pers: m === "t1" ? 100 * S[2020].porCorte[k].persT1 / S[2020].pers : 100,
-             ta: tasa(S[1990].angel, S[2020].angel), tm: tasa(v90, v20) };
+    const r = a => calc(c.slug, a, corteDe(c.slug, a, m, v), null);
+    const r90 = r(1990), r20 = r(2020), v90 = valorM(r90, m), v20 = valorM(r20, m);
+    return { slug: c.slug, nombre: c.nombre, a90: r90.angel, a20: r20.angel, v90, v20,
+             k20: corteDe(c.slug, 2020, m, v),
+             pct: 100 * v20 / r20.angel,
+             pers: m === "t1" ? 100 * r20.persT1 / r20.pers : 100,
+             ta: tasa(r90.angel, r20.angel), tm: tasa(v90, v20) };
   });
   filas.forEach(f => f.dif = f.tm - f.ta);
-  const cols = [["nombre", "Agglomeration"], ["a90", "Angel 1990 km²"], ["a20", "Angel 2020 km²"], ["v90", "Method 1990 km²"], ["v20", "Method 2020 km²"],
+  const cols = [["nombre", "Agglomeration"], ...(m === "t3" ? [["k20", "Cut 2022, p/km²"]] : []), ["a90", "Angel 1990 km²"], ["a20", "Angel 2020 km²"], ["v90", "Method 1990 km²"], ["v20", "Method 2020 km²"],
                 ["pct", "% of Angel kept 2020"], ...(m === "t1" ? [["pers", "% persons kept 2022"]] : []),
                 ["ta", "Growth Angel %/yr"], ["tm", "Growth method %/yr"], ["dif", "Difference, points"]];
   filas.sort((x, y) => (orden.col === "nombre" ? x.nombre.localeCompare(y.nombre) : (x[orden.col] - y[orden.col])) * (orden.asc ? 1 : -1));
-  const f = { a90: fmt1, a20: fmt1, v90: fmt1, v20: fmt1, pct: fmt1, pers: fmt1, ta: fmt2, tm: fmt2, dif: fmt2 };
+  const f = { k20: fmt0, a90: fmt1, a20: fmt1, v90: fmt1, v20: fmt1, pct: fmt1, pers: fmt1, ta: fmt2, tm: fmt2, dif: fmt2 };
   $("r-tabla").innerHTML = `<thead><tr>${cols.map(([c, t]) => `<th data-c="${c}">${t}${orden.col === c ? (orden.asc ? " ▲" : " ▼") : ""}</th>`).join("")}</tr></thead><tbody>`
     + filas.map(r => `<tr>${cols.map(([c]) => c === "nombre" ? `<td><a data-slug="${r.slug}">${r.nombre}</a></td>`
         : `<td class="${c === "dif" && r.dif < 0 ? "neg" : ""}">${Number.isFinite(r[c]) ? f[c](r[c]) : "–"}</td>`).join("")}</tr>`).join("") + "</tbody>";
@@ -679,16 +918,17 @@ async function resultados() {
     orden = { col: th.dataset.c, asc: orden.col === th.dataset.c ? !orden.asc : th.dataset.c === "nombre" }; resultados();
   });
   $("r-tabla").querySelectorAll("a[data-slug]").forEach(a => a.onclick = () => {
-    st.slug = a.dataset.slug; $("ciudad").value = st.slug; ponerMetodo(m); st.corte = k; llenarCortes($("corte"), m, k);
-    vista("mapa"); dibujar(true);
+    st.slug = a.dataset.slug; $("ciudad").value = st.slug;
+    if (m === "t3") st.pct = v; else st.corte = v;
+    ponerMetodo(m); vista("mapa"); dibujar(true);
   });
-  graficoCrecimiento(filas.slice().sort((x, y) => x.ta - y.ta), m, k);
+  graficoCrecimiento(filas.slice().sort((x, y) => x.ta - y.ta), m, v);
 }
 
-function graficoCrecimiento(filas, m, k) {
+function graficoCrecimiento(filas, m, v) {
   const el = $("r-graf"), W = el.clientWidth || 900, fila = 20, mg = { l: 230, r: 20, t: 10, b: 28 }, H = mg.t + mg.b + fila * filas.length;
   const vals = filas.flatMap(f => [f.ta, f.tm]).filter(Number.isFinite);
-  const x0 = Math.min(0, ...vals), x1 = Math.max(...vals) * 1.05, X = v => mg.l + (v - x0) / (x1 - x0) * (W - mg.l - mg.r);
+  const x0 = Math.min(0, ...vals), x1 = Math.max(...vals) * 1.05, X = x => mg.l + (x - x0) / (x1 - x0) * (W - mg.l - mg.r);
   let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}">`;
   const paso = niceStep((x1 - x0) / 6);
   for (let t = Math.ceil(x0 / paso) * paso; t <= x1; t += paso)
@@ -698,7 +938,7 @@ function graficoCrecimiento(filas, m, k) {
     s += `<text x="${mg.l - 8}" y="${y + 3.5}" text-anchor="end">${f.nombre}</text>`;
     if (Number.isFinite(f.tm)) s += `<line x1="${X(f.ta)}" x2="${X(f.tm)}" y1="${y}" y2="${y}" stroke="#cfcdc6" stroke-width="2"/>`;
     s += `<circle cx="${X(f.ta)}" cy="${y}" r="4.5" fill="#8a8983" stroke="#fff" stroke-width="1.5"><title>${f.nombre}, Angel: ${fmt2(f.ta)} %/yr</title></circle>`;
-    if (Number.isFinite(f.tm)) s += `<circle cx="${X(f.tm)}" cy="${y}" r="4.5" fill="#1f4e79" stroke="#fff" stroke-width="1.5"><title>${f.nombre}, ${m === "t1" ? "test 1" : "test 2"} at ${etqCorte(k)}: ${fmt2(f.tm)} %/yr</title></circle>`;
+    if (Number.isFinite(f.tm)) s += `<circle cx="${X(f.tm)}" cy="${y}" r="4.5" fill="#1f4e79" stroke="#fff" stroke-width="1.5"><title>${f.nombre}, ${{ t1: "test 1", t2: "test 2", t3: "test 3" }[m]} at ${etqOp(m, v)}: ${fmt2(f.tm)} %/yr</title></circle>`;
   });
   el.innerHTML = s + "</svg>";
 }
@@ -708,7 +948,11 @@ function vista(v) {
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.vista === v));
   $("metodos").classList.toggle("on", v === "metodos");
   $("resultados").classList.toggle("on", v === "resultados");
-  if (v === "resultados") { $("r-metodo").value = st.m === "t2" ? "t2" : "t1"; llenarCortes($("r-corte"), $("r-metodo").value, st.m === "t2" || cortesDe("t1").includes(st.corte) ? st.corte : 500); resultados(); }
+  if (v === "resultados") {
+    const m = st.m === "cmp" ? "t1" : st.m; $("r-metodo").value = m;
+    const o = m === "t3" ? st.pct : opciones(m).includes(st.corte) ? st.corte : 500;
+    llenarCortes($("r-corte"), m, o); resultados();
+  }
   if (v === "mapa") setTimeout(() => map.invalidateSize(), 50);
 }
 function pestana(p) {
@@ -716,17 +960,22 @@ function pestana(p) {
   document.querySelectorAll(".metodo").forEach(d => d.classList.toggle("on", d.id === "p-" + p));
 }
 function guardarHash() {
-  const k = isFinite(st.corte) ? st.corte : "inf";
-  history.replaceState(null, "", `#m=${st.m}&c=${st.slug}&y=${st.anio}&t=${k}&f=${st.fondo}&l=${st.capa}`);
+  const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
+  history.replaceState(null, "", `#m=${st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}`);
 }
 function leerHash() {
   const h = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
-  if (["t1", "t2", "cmp"].includes(h.m)) st.m = h.m;
+  if (["t1", "t2", "t3", "cmp"].includes(h.m)) st.m = h.m;
   if (h.c && INDICE.ciudades.some(c => c.slug === h.c)) st.slug = h.c;
   if (ANIOS.includes(Number(h.y))) st.anio = Number(h.y);
-  if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (cortesDe(st.m).includes(t)) st.corte = t; }
+  if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (opciones("t2").includes(t)) st.corte = t; }
+  if (h.p) { const p = h.p === "inf" ? Infinity : Number(h.p); if (opciones("t3").includes(p)) st.pct = p; }
   if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
   if (["res", "lim", "dens"].includes(h.l)) st.capa = h.l;
+  if (["no", "h30", "h60", "h90", "s60", "s70", "s80"].includes(h.r)) st.relleno = h.r;
+  if (["100", "200", "400"].includes(h.d)) st.dist = Number(h.d);
+  if (h.rd) st.rellDenso = h.rd === "1";
+  if (h.an) st.anillo = h.an === "1";
 }
 
 const vistaInicial = (location.hash.match(/v=(metodos|resultados)/) || [])[1];
@@ -746,24 +995,28 @@ async function iniciar() {
   $("fondo").value = st.fondo;
   $("capa").value = st.capa;
   $("opacidad").value = Math.round(100 * (1 - st.opac));
+  $("relleno").value = st.relleno; $("dist").value = String(st.dist);
+  $("rell-denso").checked = st.rellDenso; $("anillo").checked = st.anillo;
   ponerMetodo(st.m);
 
-  document.querySelectorAll("#metodo button").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.m); dibujar(false); });
+  document.querySelectorAll("#metodo button").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.m); rapido(); });
   $("ciudad").onchange = e => { st.slug = e.target.value; dibujar(true); };
   $("anio").onchange = e => { st.anio = Number(e.target.value); dibujar(false); };
-  $("corte").onchange = e => { st.corte = Number(e.target.value); dibujar(false); };
+  $("corte").onchange = e => cambiarOpcion(Number(e.target.value));
   $("opacidad").oninput = e => { st.opac = 1 - e.target.value / 100; if (capaClase) capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac); if (capaRadios && st.capa === "dens") capaRadios.setStyle(estiloRadio); };
   $("fondo").onchange = e => { st.fondo = e.target.value; ponerFondo(); guardarHash(); };
-  $("fuera").onchange = e => { st.fuera = e.target.checked; dibujar(false); };
-  $("capa").onchange = e => { st.capa = e.target.value; dibujar(false); };
-  $("perim").onchange = e => { st.perim = e.target.checked; dibujar(false); };
+  $("capa").onchange = e => { st.capa = e.target.value; rapido(); };
+  $("relleno").onchange = e => { st.relleno = e.target.value; dibujar(false); };
+  $("dist").onchange = e => { st.dist = Number(e.target.value); dibujar(false); };
+  $("rell-denso").onchange = e => { st.rellDenso = e.target.checked; rapido(); };
+  $("anillo").onchange = e => { st.anillo = e.target.checked; rapido(); };
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => vista(b.dataset.vista));
   document.querySelectorAll("#m-pestanas button").forEach(b => b.onclick = () => pestana(b.dataset.p));
   document.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => pestana(b.dataset.ir));
-  document.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.abrir); vista("mapa"); dibujar(false); });
+  document.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.abrir); vista("mapa"); rapido(); });
   $("r-metodo").onchange = () => {
     const m = $("r-metodo").value, v = Number($("r-corte").value);
-    llenarCortes($("r-corte"), m, cortesDe(m).includes(v) ? v : 500); resultados();
+    llenarCortes($("r-corte"), m, opciones(m).includes(v) ? v : m === "t3" ? 25 : 500); resultados();
   };
   $("r-corte").onchange = resultados;
   let espera; window.addEventListener("resize", () => { clearTimeout(espera); espera = setTimeout(() => { if (st.slug && RADIOS[st.slug]) panelDerecho(); }, 150); });

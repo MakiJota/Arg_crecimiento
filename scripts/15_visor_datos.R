@@ -5,8 +5,12 @@
 # El visor calcula en el navegador las pruebas 1 y 2 y su comparacion para cualquier corte, a
 # partir de lo que escribe 11. Por ciudad y anio, en Web Mercator (EPSG:3857) sobre la grilla
 # del marco de 11 (la ciudad de 2020 mas 3 km):
-#   clase_<anio>.png    R = codigo de 11 (1 construido de la ciudad, 2 franja o capturado de la
-#                       ciudad, 3 construido fuera, 0 resto); G*256 + B = fila del radio (0 = ninguno)
+#   clase_<anio>.png    R: bits 0-1 = codigo de 11 (1 construido de la ciudad, 2 franja o
+#                       capturado de la ciudad, 3 construido fuera, 0 resto); en los pixeles 2,
+#                       con las medidas de 16: bits 2-3 = distancia al borde (0 <= 100 m,
+#                       1 <= 200, 2 <= 400, 3 mas), bits 4-5 = hueco (menor cierre que lo tapa:
+#                       1 30 m, 2 60 m, 3 90 m, 0 ninguno), bits 6-7 = share construido en 150 m
+#                       (0 < 60 %, 1 60-69, 2 70-79, 3 80 o mas). G*256 + B = fila del radio
 #   landsat_<anio>.jpg  color verdadero del compuesto Landsat de 02, si existe, estirado 2-98 %
 #   radios.json         por anio, una entrada por fila de radio: codigo, personas, km2 del
 #                       radio, km2 construido y abierto de la ciudad en el radio, densidad sobre
@@ -15,7 +19,8 @@
 #                       EPSG:4326), con el campo i que apunta a la fila de radios.json
 # y datos/indice.json con nombre, limites, perimetro y que capas tiene cada ciudad.
 #
-# ENTRADAS  outputs/densidad/<slug>/ (11), outputs/landsat/<slug>/landsat_<anio>.tif (02)
+# ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
+#           outputs/landsat/<slug>/landsat_<anio>.tif (02)
 # SALIDAS   docs/visor/datos/
 #
 # Uso: Rscript Rpipe/scripts/15_visor_datos.R [--ciudades salta,jujuy]
@@ -37,6 +42,7 @@ arg <- function(nombre, defecto) {
 }
 DENS <- file.path(RPIPE, "outputs", "densidad")
 LANDSAT <- file.path(RPIPE, "outputs", "landsat")
+REGLAS <- file.path(RPIPE, "outputs", "reglas")
 SAL <- file.path(RPIPE, "docs", "visor", "datos")
 TODAS <- sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
 CIUDADES <- if (is.na(match("--ciudades", args))) TODAS else strsplit(arg("--ciudades", ""), ",")[[1]]
@@ -61,7 +67,16 @@ una <- function(slug) {
   radios <- list(); landsat <- integer(0)
   for (a in ANIOS) {
     y <- x[[as.character(a)]]
-    code <- project(y$code, plantilla, method = "near")
+    # R = codigo de 11 + 4 * clase de distancia al borde + 16 * hueco + 64 * clase de share (16)
+    rr <- file.path(REGLAS, slug, sprintf("reglas_%d.tif", a))
+    r <- y$code
+    if (file.exists(rr)) {
+      rr <- rast(rr)
+      dcl <- (rr$dist > 100) + (rr$dist > 200) + (rr$dist > 400)
+      scl <- (rr$share >= 60) + (rr$share >= 70) + (rr$share >= 80)
+      r <- ifel(y$code == 2, y$code + 4 * dcl + 16 * rr$hueco + 64 * scl, y$code)
+    }
+    code <- project(r, plantilla, method = "near")
     rid <- project(rasterize(y$v, y$code, field = "i"), plantilla, method = "near")
     code <- ifel(is.na(code), 0, code); rid <- ifel(is.na(rid), 0, rid)
     if (global(rid, "max")[[1]] > 65535) stop("mas de 65535 radios en el marco")

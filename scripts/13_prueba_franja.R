@@ -21,7 +21,7 @@
 #           pruebas/franja_densa/REPORTE.md   indice y comparacion entre aglomerados
 #
 # Uso: Rscript Rpipe/scripts/13_prueba_franja.R [--ciudades salta,jujuy] [--cortes 300,...]
-#        [--sin-mapas]   sin --ciudades: todas las que tienen salida de 11
+#        [--cortes-mapa 300,...] [--sin-mapas]   sin --ciudades: todas las que tienen salida de 11
 
 Sys.setenv(PROJ_LIB = system.file("proj", package = "terra"),
            PROJ_DATA = system.file("proj", package = "terra"),
@@ -38,7 +38,9 @@ arg <- function(nombre, defecto) {
   i <- match(nombre, args)
   if (is.na(i) || i == length(args)) defecto else args[i + 1]
 }
-CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,2000,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
+# cada 200 entre 1.000 y 3.000; los mapas usan menos cortes (--cortes-mapa) para que se lean
+CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
+CORTES_MAPA <- as.numeric(strsplit(arg("--cortes-mapa", "300,500,1000,2000,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
 SIN_MAPAS <- "--sin-mapas" %in% args
 BASE <- file.path(RPIPE, "pruebas", "franja_densa")
 DENS <- file.path(RPIPE, "outputs", "densidad")
@@ -124,11 +126,12 @@ una <- function(slug) {
   if (!SIN_MAPAS) for (a in ANIOS) {
     y <- x[[as.character(a)]]
     rid <- rasterize(y$v, y$code, field = "i")
-    capas <- rast(lapply(TODOS, function(k) {
+    TM <- c(0, CORTES_MAPA, Inf)
+    capas <- rast(lapply(TM, function(k) {
       ok <- marcar(rid, radios_con(y$t, k))
       ifel(y$code == 1, 1, ifel(y$code == 2, ifel(ok, 2, 3), ifel(y$code == 3, 4, 0)))
     }))
-    tit <- vapply(TODOS, function(k) sprintf("%s · %s km² · %s%% of fringe in", etq(k), f1(g(a, k, "ciudad_km2")),
+    tit <- vapply(TM, function(k) sprintf("%s · %s km² · %s%% of fringe in", etq(k), f1(g(a, k, "ciudad_km2")),
                                              f0(g(a, k, "pct_franja_entra"))), "")
     mapa_paneles(file.path(img, sprintf("mapa_%d.png", a)), capas, PAL, tit,
                  sprintf("%s · %d (census %s): built-up plus the fringe of dense tracts", NOMBRE, a, CENSO[[as.character(a)]]),
@@ -235,6 +238,6 @@ L <- c("# Test 2 · when does the fringe count as city? All agglomerations", "",
           f1(ciudad_c_2020), f1(angel_2020), f2(tasa_angel), f2(tasa_c), f2(tasa_constr))))), "",
   "![Fringe in dense tracts](img/franja_1990_2020.png)", "", "![Persons per km² built](img/premisa.png)", "",
   indice_mapas(BASE, res, c(city = "mapa_%d.png"),
-               nota = sprintf("Each map has %s panels: the Angel extent, every cut, and built-up only.", length(CORTES) + 2)))
+               nota = sprintf("Each map has %s panels: the Angel extent, the cuts %s, and built-up only.", length(CORTES_MAPA) + 2, paste(f0(CORTES_MAPA), collapse = ", "))))
 writeLines(enc2utf8(L), file.path(BASE, "REPORTE.md"), useBytes = TRUE)
 cat("Escrito", file.path(BASE, "REPORTE.md"), "\n")

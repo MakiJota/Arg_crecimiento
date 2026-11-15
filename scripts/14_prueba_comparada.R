@@ -32,7 +32,7 @@ arg <- function(nombre, defecto) {
   i <- match(nombre, args)
   if (is.na(i) || i == length(args)) defecto else args[i + 1]
 }
-CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,2000,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
+CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
 CORTES_MAPA <- as.numeric(strsplit(arg("--cortes-mapa", "500,3000,3500,4000"), ",")[[1]])
 SIN_MAPAS <- "--sin-mapas" %in% args
 BASE <- file.path(RPIPE, "pruebas", "comparacion")

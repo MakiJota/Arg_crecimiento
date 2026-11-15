@@ -18,7 +18,7 @@
 #           pruebas/densidad_radios/REPORTE.md   indice y comparacion entre aglomerados
 #
 # Uso: Rscript Rpipe/scripts/12_prueba_densidad.R [--ciudades salta,jujuy] [--cortes 300,...]
-#        [--sin-mapas]   sin --ciudades: todas las que tienen salida de 11
+#        [--cortes-mapa 300,...] [--sin-mapas]   sin --ciudades: todas las que tienen salida de 11
 
 Sys.setenv(PROJ_LIB = system.file("proj", package = "terra"),
            PROJ_DATA = system.file("proj", package = "terra"),
@@ -35,8 +35,10 @@ arg <- function(nombre, defecto) {
   i <- match(nombre, args)
   if (is.na(i) || i == length(args)) defecto else args[i + 1]
 }
-# entre 3.000 y 5.000 los cortes van mas finos: ahi es donde la mancha cambia de forma
-CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,2000,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
+# cada 200 entre 1.000 y 3.000 y mas finos entre 3.000 y 5.000: ahi cambia la mancha. Los mapas
+# usan menos cortes (--cortes-mapa) para que los paneles se lean
+CORTES <- as.numeric(strsplit(arg("--cortes", "300,500,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
+CORTES_MAPA <- as.numeric(strsplit(arg("--cortes-mapa", "300,500,1000,2000,3000,3250,3500,3750,4000,4500,5000"), ",")[[1]])
 SIN_MAPAS <- "--sin-mapas" %in% args
 BASE <- file.path(RPIPE, "pruebas", "densidad_radios")
 DENS <- file.path(RPIPE, "outputs", "densidad")
@@ -121,7 +123,7 @@ una <- function(slug) {
   rad$anio_f <- factor(rad$anio)
   guardar(ggplot(rad, aes(pmax(dens_urb, 10), weight = km2_urb)) +
     geom_histogram(bins = 40, fill = "#1f4e79", colour = FONDO, linewidth = 0.2) +
-    geom_vline(xintercept = CORTES, colour = "#c4622d", linewidth = 0.4, linetype = "22") +
+    geom_vline(xintercept = CORTES_MAPA, colour = "#c4622d", linewidth = 0.4, linetype = "22") +
     scale_x_log10(labels = f0) + facet_wrap(~anio_f, nrow = 1) +
     labs(x = "persons per km² of urbanized land (log)", y = "km² of urban extent",
          title = sprintf("%s · how the urban extent is spread across tract densities", NOMBRE),
@@ -132,11 +134,11 @@ una <- function(slug) {
   if (!SIN_MAPAS) for (a in ANIOS) {
     y <- x[[as.character(a)]]
     rid <- rasterize(y$v, y$code, field = "i")
-    capas <- rast(lapply(c(0, CORTES), function(k) {
+    capas <- rast(lapply(c(0, CORTES_MAPA), function(k) {
       ok <- marcar(rid, radios_con(y$t, k))
       ifel(y$code == 1, ifel(ok, 1, 3), ifel(y$code == 2, ifel(ok, 2, 4), ifel(y$code == 3, 5, 0)))
     }))
-    tit <- vapply(c(0, CORTES), function(k) sprintf("%s · %s km² (%s%%) · %s%% of people", etq(k),
+    tit <- vapply(c(0, CORTES_MAPA), function(k) sprintf("%s · %s km² (%s%%) · %s%% of people", etq(k),
                   f1(g(a, k, "mancha_km2")), f0(g(a, k, "pct_area")), f1(g(a, k, "pct_personas"))), "")
     mapa_paneles(file.path(img, sprintf("mapa_%d.png", a)), capas, PAL, tit,
                  sprintf("%s · %d (census %s): urban extent kept by density cut", NOMBRE, a, CENSO[[as.character(a)]]),
@@ -144,7 +146,7 @@ una <- function(slug) {
                  x$cont)
 
     # densidad del radio pintada solo sobre la ciudad
-    cl <- cut(y$t$dens_urb, c(0, CORTES, Inf), right = FALSE)
+    cl <- cut(y$t$dens_urb, c(0, CORTES_MAPA, Inf), right = FALSE)
     pal_d <- colorRampPalette(c("#dbe7f4", "#0b2642"))(length(levels(cl)))
     clase <- ifel(y$code %in% c(1, 2), classify(rid, cbind(y$t$i_fila, as.integer(cl))), NA)
     poco <- y$t$i_fila[y$t$km2_urb > 0 & y$t$km2_urb / y$t$km2_radio < 0.1]
@@ -164,8 +166,8 @@ una <- function(slug) {
     legend("bottom", ncol = 4, bty = "n", border = NA, cex = 1.4, text.col = TINTA2, inset = 0.005,
            fill = c(pal_d, NA), col = c(rep(NA, length(pal_d)), "#c4622d"), lty = c(rep(NA, length(pal_d)), 1),
            lwd = c(rep(NA, length(pal_d)), 2),
-           legend = c(paste("<", f0(CORTES[1])), paste0(f0(head(CORTES, -1)), "-", f0(CORTES[-1])),
-                      paste0(f0(tail(CORTES, 1)), "+"), "tract <10% in the city"))
+           legend = c(paste("<", f0(CORTES_MAPA[1])), paste0(f0(head(CORTES_MAPA, -1)), "-", f0(CORTES_MAPA[-1])),
+                      paste0(f0(tail(CORTES_MAPA, 1)), "+"), "tract <10% in the city"))
     dev.off()
   }
 
@@ -265,6 +267,6 @@ L <- c("# Test 1 · the urban patch with census density, all agglomerations", ""
   "![Growth with and without the cut](img/crecimiento.png)", "", "![Cost of the cut in 2020](img/costo_2020.png)", "",
   indice_mapas(BASE, res, c(patch = "mapa_%d.png", density = "densidad_%d.png"),
                nota = sprintf("*patch*: the extent kept at each cut (%s panels, no cut to %s p/km²); *density*: persons per km² urbanized by tract.",
-                              length(CORTES) + 1, f0(max(CORTES)))))
+                              length(CORTES_MAPA) + 1, f0(max(CORTES_MAPA)))))
 writeLines(enc2utf8(L), file.path(BASE, "REPORTE.md"), useBytes = TRUE)
 cat("Escrito", file.path(BASE, "REPORTE.md"), "\n")

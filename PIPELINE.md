@@ -48,7 +48,8 @@ with `fetch`, so locally it needs a server, not a double click:
 | 12 | `scripts/12_prueba_densidad.R` | test 1, urban patch by tract density (`pruebas/densidad_radios/`) | no |
 | 13 | `scripts/13_prueba_franja.R` | test 2, fringe added only in dense tracts (`pruebas/franja_densa/`) | no |
 | 14 | `scripts/14_prueba_comparada.R` | tests 1 and 2 side by side (`pruebas/comparacion/`) | no |
-| 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11 and 02 | yes, in `docs/` |
+| 16 | `scripts/16_reglas.R` | test 3 and the fill rule (`pruebas/reglas/`, `outputs/reglas/`) | no |
+| 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11, 16 and 02 | yes, in `docs/` |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 
 Step 03 (`scripts/03_ghsl_built_s.R`, GHSL) does not feed the site or the report.
