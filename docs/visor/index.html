@@ -180,6 +180,8 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
         <option value="relleno">filled red</option>
         <option value="borde">red outline</option>
       </select>
+      <label for="mb-opac" style="margin-top:8px">Transparency of MapBiomas</label>
+      <input type="range" id="mb-opac" min="0" max="100" value="30">
       <p class="ayuda" id="mb-nota"></p>
     </div>
     <div class="paso">
@@ -463,7 +465,7 @@ const AVISOS = {
   salta: "Caution: the horticultural plots south of the city show as built-up; the dry bed of the Arenales river is kept as fringe.",
 };
 const st = { m: "t1", slug: null, anio: 2020, corte: 500, pct: 25, opac: 0.85, fondo: "landsat", perim: true, capa: "res",
-             relleno: "no", dist: 200, rellDenso: true, anillo: false, mbOn: false, mbEstilo: "relleno", ocultas: new Set() };
+             relleno: "no", dist: 200, rellDenso: true, anillo: false, mbOn: false, mbEstilo: "relleno", mbOpac: 0.7, ocultas: new Set() };
 let INDICE = null;
 const RADIOS = {}, CLASE = {}, RELLENO = {}, PCT = {};
 
@@ -774,6 +776,7 @@ function pintarMB() {
     capaMB = L.svgOverlay(lienzoMB, c.limites, { pane: "mapbiomas", interactive: false }).addTo(map);
     capaMBslug = st.slug;
   }
+  capaMB.setOpacity(st.mbOpac);
 }
 async function rapido() {
   // lo que cambia con el corte o las capas, sin volver a cargar datos
@@ -782,7 +785,7 @@ async function rapido() {
   capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
   await ponerRadios();
   pintarMB();
-  $("mb-on").checked = st.mbOn; $("mb-estilo").value = st.mbEstilo; $("mb-estilo").disabled = !st.mbOn;
+  $("mb-on").checked = st.mbOn; $("mb-estilo").value = st.mbEstilo; $("mb-estilo").disabled = !st.mbOn; $("mb-opac").disabled = !st.mbOn;
   $("mb-nota").textContent = st.mbOn
     ? (!tienePMB() ? "No MapBiomas layer for this agglomeration and year."
       : `MapBiomas Argentina collection 2, year ${CENSO[st.anio]} (the census year), urban area class through the Angel rule `
@@ -1187,6 +1190,8 @@ async function iniciar() {
   $("anillo").onchange = e => { st.anillo = e.target.checked; rapido(); };
   $("mb-on").onchange = e => { st.mbOn = e.target.checked; dibujar(false); };
   $("mb-estilo").onchange = e => { st.mbEstilo = e.target.value; rapido(); };
+  $("mb-opac").value = Math.round(100 * (1 - st.mbOpac));
+  $("mb-opac").oninput = e => { st.mbOpac = 1 - e.target.value / 100; if (capaMB) capaMB.setOpacity(st.mbOpac); };
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => vista(b.dataset.vista));
   document.querySelectorAll("#m-pestanas button").forEach(b => b.onclick = () => pestana(b.dataset.p));
   document.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => pestana(b.dataset.ir));
