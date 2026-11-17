@@ -262,8 +262,9 @@ neighbourhood pasture, and it does not distinguish a vineyard with houses from a
 **Every census: Pedro's layers (viewer only).** Pedro compared MapBiomas and GISD30 for the four
 censuses in `scripts/ag_43_manchas_contraste.py` (platform, Pruebas tab), before the bucket
 closed. His layers ship in the repo as `plataforma/datos/<agglomeration>/manchas_<census>.js`.
-Step 15 decodes them onto the viewer grid (`pedro_mb_<year>.png`), and the viewer shows them as
-three options under "Show on the map".
+Step 15 decodes them onto the viewer grid (`pedro_mb_<year>.png`). The viewer shows only the
+MapBiomas footprint ("both" + "only MapBiomas"), as the option "MapBiomas urban". The comparison
+classes are kept in the file but not shown.
 
 - **What they compare.** MapBiomas class 24 of the census year (1991, 2001, 2010, 2022) against
   the GISD30 cut paired with it (1990, 2000, 2010, 2020). Both go through the Angel rule (urban +
