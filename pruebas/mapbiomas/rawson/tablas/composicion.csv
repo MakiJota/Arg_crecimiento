@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",38.7873,132.0183,29.380245011487
+"built-up of the city","cultivo",64.3833,132.0183,48.7684661899146
+"built-up of the city","agua",0.0468,132.0183,0.0354496308466326
+"built-up of the city","natural",27.3852,132.0183,20.7434878346411
+"built-up of the city","sin_vegetacion",1.3599,132.0183,1.03008446556273
+"built-up of the city","no_observado",0.0054,132.0183,0.0040903420207653
+"fringe/captured of the city","urbano",3.8646,61.4061,6.29351155666945
+"fringe/captured of the city","cultivo",14.0454,61.4061,22.8729719034428
+"fringe/captured of the city","agua",0.6201,61.4061,1.00983452784007
+"fringe/captured of the city","natural",38.9844,61.4061,63.4862008823228
+"fringe/captured of the city","sin_vegetacion",3.4578,61.4061,5.6310366559674
+"fringe/captured of the city","no_observado",0.0639,61.4061,0.104061322897888
+"fill (gaps of 60 m)","urbano",3.4938,37.7361,9.25850843091893
+"fill (gaps of 60 m)","cultivo",20.1906,37.7361,53.5047341935176
+"fill (gaps of 60 m)","agua",0.0081,37.7361,0.0214648572586992
+"fill (gaps of 60 m)","natural",13.6044,37.7361,36.0514202580553
+"fill (gaps of 60 m)","sin_vegetacion",0.4392,37.7361,1.16387226024947
+"fill (gaps of 60 m)","no_observado",0,37.7361,0
+"fill, dense tracts only","urbano",0.6534,0.6813,95.9048877146631
+"fill, dense tracts only","cultivo",0,0.6813,0
+"fill, dense tracts only","agua",0,0.6813,0
+"fill, dense tracts only","natural",0.0234,0.6813,3.43461030383091
+"fill, dense tracts only","sin_vegetacion",0.0045,0.6813,0.660501981505944
+"fill, dense tracts only","no_observado",0,0.6813,0
+"built outside the city","urbano",1.2951,12.6162,10.2653730917392
+"built outside the city","cultivo",4.6233,12.6162,36.6457411898987
+"built outside the city","agua",0.0225,12.6162,0.178342131545156
+"built outside the city","natural",5.7411,12.6162,45.5057782850621
+"built outside the city","sin_vegetacion",0.8217,12.6162,6.51305464402911
+"built outside the city","no_observado",9e-04,12.6162,0.00713368526180625

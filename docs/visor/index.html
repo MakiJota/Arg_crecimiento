@@ -171,7 +171,9 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
         <option value="res">Result of the method</option>
         <option value="lim">Result + census tract limits</option>
         <option value="dens">Census tracts by density</option>
+        <option value="mb">Compare with MapBiomas 2020</option>
       </select>
+      <p class="ayuda" id="mb-nota"></p>
     </div>
     <div class="paso">
       <label for="opacidad">Transparency of the result</label>
@@ -377,6 +379,32 @@ const ETQ = {
   cmp: { bd: "built, dense tract · both tests", bs: "built, sparse tract · test 2 only", fd: "fringe / captured, dense tract · both", fs: "fringe / captured, sparse tract · neither" },
 };
 const colores = m => ({ bd: AZUL, bs: m === "t1" || m === "cmp" ? CELESTE : AZUL, fd: VIOLETA, fs: ROJO, fdr: VIOLETA_CL, fsr: ROJO_CL, fi: TEAL, fu: AMARILLO });
+// comparacion con MapBiomas 2020 (paso 17): R = clase, G = codigo de MapBiomas
+const MB = {
+  m1: { c: "#1f4e79", t: "urban in both (GISD30 built-up, MapBiomas urban)" },
+  m2: { c: "#c27ba0", t: "GISD30 built-up, MapBiomas crops or pasture" },
+  m3: { c: "#e09f3e", t: "GISD30 built-up, MapBiomas other cover" },
+  m4: { c: "#7fb8e6", t: "MapBiomas urban on the city's fringe / captured land" },
+  m5: { c: "#f2c500", t: "MapBiomas urban outside the city" },
+};
+const MB_NOMBRE = { 3: "closed forest", 4: "open forest", 6: "flooded forest", 9: "forest plantation", 11: "flooded grassland", 12: "grassland",
+  15: "pasture", 19: "temporary crops", 21: "agriculture and pasture mosaic", 24: "urban area", 25: "other non-vegetated area", 27: "not observed",
+  33: "river, lake or ocean", 34: "ice and snow", 36: "perennial crops", 63: "shrub and herbaceous mosaic", 66: "closed shrubland", 73: "peatland", 77: "open shrubland" };
+const MBC = {};
+async function mapbiomas(slug) {
+  if (!MBC[slug]) {
+    const blob = await (await fetch(`${DATOS}${slug}/mapbiomas_2020.png`)).blob();
+    const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+    const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
+    const d = cx.getImageData(0, 0, bmp.width, bmp.height).data, n = bmp.width * bmp.height;
+    const cls = new Uint8Array(n), cod = new Uint8Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) { cls[i] = d[j]; cod[i] = d[j + 1]; }
+    MBC[slug] = { w: bmp.width, h: bmp.height, cls, cod };
+  }
+  return MBC[slug];
+}
+const tieneMB = () => { const c = ciudad(); return !!(c && c.mapbiomas); };
 const DENS_CORTES = [300, 500, 1000, 2000, 3000, 4000, 5000];
 const DENS_COL = ["#f0f4fa", "#d6e3f2", "#b3cde8", "#86afd9", "#5b8ec7", "#3a6fae", "#22528e", "#0b2642"];
 const densClase = d => { let i = 0; while (i < DENS_CORTES.length && d >= DENS_CORTES[i]) i++; return i; };
@@ -559,6 +587,18 @@ function pintar(cl) {
     lienzo = document.createElement("canvas"); lienzo.width = cl.w; lienzo.height = cl.h; lienzo.className = "pixelado";
   }
   const cx = lienzo.getContext("2d"), img = cx.createImageData(cl.w, cl.h), d = img.data, rid = cl.rid;
+  if (st.capa === "mb") {
+    const M = MBC[st.slug];
+    if (M && M.w === cl.w && M.h === cl.h) {
+      const pm = [null, "m1", "m2", "m3", "m4", "m5"].map(c => c && !st.ocultas.has(c) ? hex(MB[c].c) : null);
+      for (let i = 0, j = 0; i < M.cls.length; i++, j += 4) {
+        const col = pm[M.cls[i]];
+        if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+      }
+    }
+    cx.putImageData(img, 0, 0);
+    return lienzo;
+  }
   for (let i = 0, j = 0; i < cl.code.length; i++, j += 4) {
     const R = cl.code[i];
     if (R === 0) continue;
@@ -580,11 +620,11 @@ async function geo(slug, anio) {
 }
 function estiloRadio(f) {
   const R = RADIOS[st.slug][st.anio], j = f.properties.i - 1, u = R.construido[j] + R.abierto[j];
-  if (st.capa === "lim") return { color: "#1e1e1e", weight: 0.7, opacity: 0.75, fill: true, fillOpacity: 0 };
+  if (st.capa === "lim" || st.capa === "mb") return { color: ROJO, weight: 0.8, opacity: 0.85, fill: true, fillOpacity: 0 };
   // un radio con menos del 10 % de su superficie en la ciudad no se rellena: su densidad sale
   // de un retazo de ciudad que carga con todos sus habitantes
   const lleno = u > 0 && u >= MIN_CIUDAD * R.area[j];
-  return { color: "#ffffff", weight: 0.6, opacity: 0.9, fill: true, fillColor: lleno ? DENS_COL[densClase(R.dens[j])] : "#000",
+  return { color: ROJO, weight: 0.6, opacity: 0.8, fill: true, fillColor: lleno ? DENS_COL[densClase(R.dens[j])] : "#000",
            fillOpacity: !lleno ? 0 : st.opac * (corteActual() === 0 || densoActual[j + 1] ? 1 : 0.35) };
 }
 function textoRadio(j) {
@@ -609,7 +649,7 @@ async function ponerRadios() {
     capaRadios = L.geoJSON(g, { renderer: rendRadios, style: estiloRadio,
       onEachFeature: (f, l) => {
         l.bindTooltip(() => textoRadio(f.properties.i - 1), { sticky: true, direction: "top", opacity: 0.95 });
-        l.on("mouseover", () => l.setStyle({ color: "#111", weight: 2.2, opacity: 1 }));
+        l.on("mouseover", () => l.setStyle({ color: "#7a0f1c", weight: 2.4, opacity: 1 }));
         l.on("mouseout", () => capaRadios.resetStyle(l));
       } }).addTo(map);
     radiosClave = clave;
@@ -624,13 +664,17 @@ async function dibujar(encuadrar) {
     await radios(st.slug);
     const cl = await clase(st.slug, st.anio);
     FILL = await prepararRelleno(st.slug);
+    if (st.capa === "mb" && tieneMB()) await mapbiomas(st.slug);
     const cv = pintar(cl);
     if (ciudadActual !== st.slug || !capaClase) {
       if (capaClase) map.removeLayer(capaClase);
       // svgOverlay acepta cualquier elemento: se le pasa el canvas y Leaflet lo escala
       capaClase = L.svgOverlay(cv, c.limites, { pane: "clases", interactive: false }).addTo(map);
       if (capaPerim) map.removeLayer(capaPerim);
-      capaPerim = L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#111", weight: 1.6, fill: false, dashArray: "5 4" } });
+      // perimetro: blanco y grueso, sobre un borde oscuro para que se vea tambien en el mapa claro
+      capaPerim = L.layerGroup([
+        L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#111", weight: 5.5, opacity: 0.45, fill: false } }),
+        L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#ffffff", weight: 3.2, opacity: 1, fill: false, dashArray: "9 6" } }) ]);
       ciudadActual = st.slug;
     }
     if (encuadrar) map.fitBounds(c.limites, { padding: [10, 10] });
@@ -648,6 +692,8 @@ async function rapido() {
   if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
   capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
   await ponerRadios();
+  $("mb-nota").textContent = st.capa !== "mb" ? "" : !tieneMB() ? "No MapBiomas comparison for this agglomeration."
+    : "MapBiomas Argentina collection 2, 2020 (Source Cooperative copy), against the GISD30 city of 2020. Only 2020: the year is fixed.";
   ayudaCorte(); leyenda(); panelDerecho(); guardarHash();
 }
 let pedido = null;
@@ -673,6 +719,8 @@ map.on("click", e => {
     const h = (R >> 4) & 3, s = ["< 60 %", "60–69 %", "70–79 %", "≥ 80 %"][R >> 6];
     extra = `<br>From the city edge: ${dcl} · gap: ${h ? "closed at " + 30 * h + " m" : "not a narrow gap"} · built within 150 m: ${s}`;
   }
+  const M = MBC[st.slug];
+  if (M && st.anio === 2020 && M.w === cl.w) extra += `<br>MapBiomas 2020: <b>${MB_NOMBRE[M.cod[i]] || "no data"}</b>`;
   L.popup().setLatLng(e.latlng).setContent(`<b>Pixel: ${tipo}</b>${extra}<br>` + (r > 0 ? textoRadio(r - 1) : "No census tract here")).openOn(map);
 });
 
@@ -692,20 +740,23 @@ function leyenda() {
   const E = ETQ[st.m], COL = colores(st.m);
   const item = (clave, color, texto) => `<li><label><input type="checkbox" data-clase="${clave}" ${st.ocultas.has(clave) ? "" : "checked"}><i style="background:${color}"></i>${texto}</label></li>`;
   let h = "";
-  if (st.capa === "dens") {
+  if (st.capa === "mb") {
+    for (const [c, v] of Object.entries(MB)) h += item(c, v.c, v.t);
+    h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
+  } else if (st.capa === "dens") {
     const lim = [0].concat(DENS_CORTES);
     h += `<li style="color:var(--ink)">Tract density, persons / km² urbanized</li>`;
     DENS_COL.forEach((c, i) => h += `<li><i style="background:${c}"></i>${i < DENS_CORTES.length ? fmt0(lim[i]) + " – " + fmt0(DENS_CORTES[i]) : "≥ " + fmt0(lim[i])}</li>`);
     if (corteActual() > 0) h += `<li><i style="background:#86afd9;opacity:.37"></i>faded: below the threshold</li>`;
-    h += `<li><i style="background:none;border:1.5px solid #999"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
+    h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
   } else {
     for (const c of ["bd", "bs", "fd", "fs"]) if (E[c]) h += item(c, COL[c], E[c]);
     if (st.anillo) h += `<li><i style="background:${VIOLETA_CL}"></i><i style="background:${ROJO_CL};margin-left:-4px"></i>same, edge ring (≤ ${st.dist} m from the city edge)</li>`;
     if (st.relleno !== "no") h += item("fi", TEAL, "open land filled as built-up (fill rule)");
     h += item("fu", AMARILLO, "built outside the city");
-    if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid #141414"></i>census tract limit</li>`;
+    if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   }
-  h += `<li><label><input type="checkbox" id="perim" ${st.perim ? "checked" : ""}><i style="background:none;border:1.5px dashed #111"></i>analysis perimeter</label></li>`;
+  h += `<li><label><input type="checkbox" id="perim" ${st.perim ? "checked" : ""}><i style="background:#555;border:2px dashed #fff;box-sizing:border-box"></i>analysis perimeter</label></li>`;
   $("leyenda").innerHTML = h;
   $("leyenda").querySelectorAll("input[data-clase]").forEach(x => x.onchange = () => {
     if (x.checked) st.ocultas.delete(x.dataset.clase); else st.ocultas.add(x.dataset.clase);
@@ -971,7 +1022,8 @@ function leerHash() {
   if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (opciones("t2").includes(t)) st.corte = t; }
   if (h.p) { const p = h.p === "inf" ? Infinity : Number(h.p); if (opciones("t3").includes(p)) st.pct = p; }
   if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
-  if (["res", "lim", "dens"].includes(h.l)) st.capa = h.l;
+  if (["res", "lim", "dens", "mb"].includes(h.l)) st.capa = h.l;
+  if (st.capa === "mb") st.anio = 2020;
   if (["no", "h30", "h60", "h90", "s60", "s70", "s80"].includes(h.r)) st.relleno = h.r;
   if (["100", "200", "400"].includes(h.d)) st.dist = Number(h.d);
   if (h.rd) st.rellDenso = h.rd === "1";
@@ -1001,11 +1053,19 @@ async function iniciar() {
 
   document.querySelectorAll("#metodo button").forEach(b => b.onclick = () => { ponerMetodo(b.dataset.m); rapido(); });
   $("ciudad").onchange = e => { st.slug = e.target.value; dibujar(true); };
-  $("anio").onchange = e => { st.anio = Number(e.target.value); dibujar(false); };
+  $("anio").onchange = e => {
+    st.anio = Number(e.target.value);
+    if (st.capa === "mb" && st.anio !== 2020) { st.capa = "res"; $("capa").value = "res"; }
+    dibujar(false);
+  };
   $("corte").onchange = e => cambiarOpcion(Number(e.target.value));
   $("opacidad").oninput = e => { st.opac = 1 - e.target.value / 100; if (capaClase) capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac); if (capaRadios && st.capa === "dens") capaRadios.setStyle(estiloRadio); };
   $("fondo").onchange = e => { st.fondo = e.target.value; ponerFondo(); guardarHash(); };
-  $("capa").onchange = e => { st.capa = e.target.value; rapido(); };
+  $("capa").onchange = e => {
+    st.capa = e.target.value;
+    if (st.capa === "mb" && st.anio !== 2020) { st.anio = 2020; $("anio").value = "2020"; }
+    dibujar(false);
+  };
   $("relleno").onchange = e => { st.relleno = e.target.value; dibujar(false); };
   $("dist").onchange = e => { st.dist = Number(e.target.value); dibujar(false); };
   $("rell-denso").onchange = e => { st.rellDenso = e.target.checked; rapido(); };

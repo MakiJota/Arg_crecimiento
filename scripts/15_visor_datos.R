@@ -19,7 +19,9 @@
 #                       EPSG:4326), con el campo i que apunta a la fila de radios.json
 # y datos/indice.json con nombre, limites, perimetro y que capas tiene cada ciudad.
 #
+#   mapbiomas_2020.png  comparacion con MapBiomas 2020 (paso 17), si existe
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
+#           outputs/mapbiomas/<slug>/mapbiomas_2020.tif (17, opcional),
 #           outputs/landsat/<slug>/landsat_<anio>.tif (02)
 # SALIDAS   docs/visor/datos/
 #
@@ -110,6 +112,20 @@ una <- function(slug) {
   }
   jsonlite::write_json(radios, file.path(dir, "radios.json"), auto_unbox = TRUE, digits = NA)
 
+  # MapBiomas 2020 (paso 17) contra la ciudad de 2020: R = clase de la comparacion (1 urbano en los
+  # dos, 2 construido GISD30 que MapBiomas llama cultivo, 3 construido GISD30 con otra cobertura,
+  # 4 urbano MapBiomas sobre franja, 5 urbano MapBiomas fuera de la ciudad), G = codigo de MapBiomas
+  f_mb <- file.path(RPIPE, "outputs", "mapbiomas", slug, "mapbiomas_2020.tif")
+  mapbiomas <- file.exists(f_mb)
+  if (mapbiomas) {
+    mb <- rast(f_mb); cd <- x[["2020"]]$code
+    urb <- mb == 24; cult <- mb %in% c(9, 15, 19, 21, 36)
+    cl <- ifel(cd == 1, ifel(urb, 1, ifel(cult, 2, 3)), ifel(urb, ifel(cd == 2, 4, 5), 0))
+    cl <- project(c(cl, mb), plantilla, method = "near")
+    cl <- ifel(is.na(cl), 0, cl)
+    png_rgb(c(cl[[1]], cl[[2]], cl[[1]] * 0), file.path(dir, "mapbiomas_2020.png"), "PNG", gdal = "ZLEVEL=9")
+  }
+
   e <- as.vector(ext(plantilla))
   esq <- project(vect(rbind(c(e[["xmin"]], e[["ymin"]]), c(e[["xmax"]], e[["ymax"]])), crs = MERC), "EPSG:4326")
   esq <- crds(esq)
@@ -119,7 +135,7 @@ una <- function(slug) {
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
-       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat),
+       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas,
        perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
 }
 

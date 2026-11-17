@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",107.2656,144.1791,74.3974681489897
+"built-up of the city","cultivo",28.0863,144.1791,19.4801465677064
+"built-up of the city","agua",0.0324,144.1791,0.0224720503873308
+"built-up of the city","natural",1.4076,144.1791,0.976285744605147
+"built-up of the city","sin_vegetacion",7.3872,144.1791,5.12362748831141
+"built-up of the city","no_observado",0,144.1791,0
+"fringe/captured of the city","urbano",17.5968,68.9958,25.504161122851
+"fringe/captured of the city","cultivo",42.534,68.9958,61.6472307009992
+"fringe/captured of the city","agua",0.4194,68.9958,0.607863087318358
+"fringe/captured of the city","natural",6.1092,68.9958,8.85445201012235
+"fringe/captured of the city","sin_vegetacion",2.3364,68.9958,3.38629307870914
+"fringe/captured of the city","no_observado",0,68.9958,0
+"fill (gaps of 60 m)","urbano",15.9651,36.7533,43.4385483752479
+"fill (gaps of 60 m)","cultivo",18.3807,36.7533,50.0110194186645
+"fill (gaps of 60 m)","agua",0.045,36.7533,0.122437985160516
+"fill (gaps of 60 m)","natural",1.0404,36.7533,2.83076621691113
+"fill (gaps of 60 m)","sin_vegetacion",1.3221,36.7533,3.59722800401597
+"fill (gaps of 60 m)","no_observado",0,36.7533,0
+"fill, dense tracts only","urbano",2.9979,3.195,93.830985915493
+"fill, dense tracts only","cultivo",0.18,3.195,5.63380281690141
+"fill, dense tracts only","agua",0.0054,3.195,0.169014084507042
+"fill, dense tracts only","natural",0.0036,3.195,0.112676056338028
+"fill, dense tracts only","sin_vegetacion",0.0081,3.195,0.253521126760563
+"fill, dense tracts only","no_observado",0,3.195,0
+"built outside the city","urbano",10.8504,40.1913,26.9968873860761
+"built outside the city","cultivo",23.4648,40.1913,58.382784333923
+"built outside the city","agua",0.0639,40.1913,0.158989632084556
+"built outside the city","natural",0.9207,40.1913,2.29079427637324
+"built outside the city","sin_vegetacion",4.8915,40.1913,12.1705443715431
+"built outside the city","no_observado",0,40.1913,0

@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",119.3832,130.3668,91.5748488112004
+"built-up of the city","cultivo",9.5625,130.3668,7.33507304006848
+"built-up of the city","agua",0,130.3668,0
+"built-up of the city","natural",1.3023,130.3668,0.998950653080386
+"built-up of the city","sin_vegetacion",0.1188,130.3668,0.0911274956507332
+"built-up of the city","no_observado",0,130.3668,0
+"fringe/captured of the city","urbano",20.4192,52.9893,38.5345720739847
+"fringe/captured of the city","cultivo",17.8893,52.9893,33.7602119673217
+"fringe/captured of the city","agua",0.0171,52.9893,0.0322706659646381
+"fringe/captured of the city","natural",11.1708,52.9893,21.0812371554257
+"fringe/captured of the city","sin_vegetacion",3.4929,52.9893,6.59170813730319
+"fringe/captured of the city","no_observado",0,52.9893,0
+"fill (gaps of 60 m)","urbano",20.3526,29.4138,69.1940517716174
+"fill (gaps of 60 m)","cultivo",6.9318,29.4138,23.5664891989474
+"fill (gaps of 60 m)","agua",0,29.4138,0
+"fill (gaps of 60 m)","natural",1.8477,29.4138,6.28174530322502
+"fill (gaps of 60 m)","sin_vegetacion",0.2817,29.4138,0.957713726210146
+"fill (gaps of 60 m)","no_observado",0,29.4138,0
+"fill, dense tracts only","urbano",6.1497,6.6069,93.0799618580575
+"fill, dense tracts only","cultivo",0.2844,6.6069,4.30459065522408
+"fill, dense tracts only","agua",0,6.6069,0
+"fill, dense tracts only","natural",0.1215,6.6069,1.8389865140989
+"fill, dense tracts only","sin_vegetacion",0.0513,6.6069,0.776460972619534
+"fill, dense tracts only","no_observado",0,6.6069,0
+"built outside the city","urbano",14.2506,33.9948,41.9199406968125
+"built outside the city","cultivo",14.7105,33.9948,43.2727946627131
+"built outside the city","agua",0,33.9948,0
+"built outside the city","natural",4.0473,33.9948,11.9056443926718
+"built outside the city","sin_vegetacion",0.9864,33.9948,2.90162024780261
+"built outside the city","no_observado",0,33.9948,0

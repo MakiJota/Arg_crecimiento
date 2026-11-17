@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",52.7841,55.9278,94.379002928776
+"built-up of the city","cultivo",0.0099,55.9278,0.0177013935824402
+"built-up of the city","agua",0.0882,55.9278,0.157703324643558
+"built-up of the city","natural",2.3382,55.9278,4.1807473206527
+"built-up of the city","sin_vegetacion",0.477,55.9278,0.852885327153938
+"built-up of the city","no_observado",0.0297,55.9278,0.0531041807473207
+"fringe/captured of the city","urbano",7.9272,20.421,38.8188629352138
+"fringe/captured of the city","cultivo",0.0594,20.421,0.290877038342882
+"fringe/captured of the city","agua",0.2304,20.421,1.12825033054209
+"fringe/captured of the city","natural",8.3412,20.421,40.8461877479066
+"fringe/captured of the city","sin_vegetacion",1.8747,20.421,9.18025561921551
+"fringe/captured of the city","no_observado",0.1224,20.421,0.599382988100485
+"fill (gaps of 60 m)","urbano",8.199,9.6201,85.2278042847788
+"fill (gaps of 60 m)","cultivo",0.0081,9.6201,0.0841987089531294
+"fill (gaps of 60 m)","agua",0.0108,9.6201,0.112264945270839
+"fill (gaps of 60 m)","natural",1.1142,9.6201,11.5820001871082
+"fill (gaps of 60 m)","sin_vegetacion",0.2628,9.6201,2.73178033492375
+"fill (gaps of 60 m)","no_observado",0.0252,9.6201,0.261951538965291
+"fill, dense tracts only","urbano",1.2033,1.3275,90.6440677966102
+"fill, dense tracts only","cultivo",0,1.3275,0
+"fill, dense tracts only","agua",0.0027,1.3275,0.203389830508475
+"fill, dense tracts only","natural",0.1089,1.3275,8.20338983050848
+"fill, dense tracts only","sin_vegetacion",0.0126,1.3275,0.949152542372881
+"fill, dense tracts only","no_observado",0,1.3275,0
+"built outside the city","urbano",3.0627,6.1389,49.8900454478815
+"built outside the city","cultivo",9e-04,6.1389,0.0146606069491277
+"built outside the city","agua",0.0135,6.1389,0.219909104236915
+"built outside the city","natural",2.5056,6.1389,40.8151297463715
+"built outside the city","sin_vegetacion",0.5112,6.1389,8.32722474710453
+"built outside the city","no_observado",0,6.1389,0

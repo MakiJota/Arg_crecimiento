@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",123.7968,146.7837,84.3396099158149
+"built-up of the city","cultivo",18.4752,146.7837,12.5866836712796
+"built-up of the city","agua",0.1035,146.7837,0.0705119165138909
+"built-up of the city","natural",4.23,146.7837,2.88179137056771
+"built-up of the city","sin_vegetacion",0.1719,146.7837,0.117111096123071
+"built-up of the city","no_observado",0.0063,146.7837,0.00429202970084553
+"fringe/captured of the city","urbano",15.867,62.1333,25.5370308675058
+"fringe/captured of the city","cultivo",29.8143,62.1333,47.9844141547286
+"fringe/captured of the city","agua",1.6965,62.1333,2.73041991975318
+"fringe/captured of the city","natural",13.6908,62.1333,22.0345611773397
+"fringe/captured of the city","sin_vegetacion",0.8703,62.1333,1.40069817634022
+"fringe/captured of the city","no_observado",0.1944,62.1333,0.312875704332459
+"fill (gaps of 60 m)","urbano",16.2963,32.1588,50.6744654651293
+"fill (gaps of 60 m)","cultivo",12.4623,32.1588,38.7523788201052
+"fill (gaps of 60 m)","agua",0.0189,32.1588,0.0587708496585694
+"fill (gaps of 60 m)","natural",3.2814,32.1588,10.203738945483
+"fill (gaps of 60 m)","sin_vegetacion",0.0999,32.1588,0.310645919623867
+"fill (gaps of 60 m)","no_observado",0,32.1588,0
+"fill, dense tracts only","urbano",2.1681,2.3013,94.2119671490027
+"fill, dense tracts only","cultivo",0.1017,2.3013,4.41924129839656
+"fill, dense tracts only","agua",0,2.3013,0
+"fill, dense tracts only","natural",0.0306,2.3013,1.3296832225264
+"fill, dense tracts only","sin_vegetacion",9e-04,2.3013,0.0391083300743058
+"fill, dense tracts only","no_observado",0,2.3013,0
+"built outside the city","urbano",15.6276,43.0452,36.3050932508154
+"built outside the city","cultivo",21.5307,43.0452,50.018817429121
+"built outside the city","agua",0.0387,43.0452,0.0899054946893033
+"built outside the city","natural",5.0391,43.0452,11.7065317387304
+"built outside the city","sin_vegetacion",0.8082,43.0452,1.87756126118592
+"built outside the city","no_observado",9e-04,43.0452,0.00209082545789077

@@ -1,0 +1,31 @@
+"parte","grupo","km2","total_km2","pct"
+"built-up of the city","urbano",1903.7484,1940.8257,98.0896120656275
+"built-up of the city","cultivo",1.1988,1940.8257,0.0617675250281362
+"built-up of the city","agua",0.2448,1940.8257,0.0126131882940338
+"built-up of the city","natural",28.9953,1940.8257,1.4939672326062
+"built-up of the city","sin_vegetacion",5.5773,1940.8257,0.287367381831352
+"built-up of the city","no_observado",0.3276,1940.8257,0.0168794137464276
+"fringe/captured of the city","urbano",132.7131,386.8119,34.309466694277
+"fringe/captured of the city","cultivo",45.3996,386.8119,11.7368674541812
+"fringe/captured of the city","agua",13.5018,386.8119,3.49053377106547
+"fringe/captured of the city","natural",190.3635,386.8119,49.213454911806
+"fringe/captured of the city","sin_vegetacion",0.8982,386.8119,0.23220588611674
+"fringe/captured of the city","no_observado",0.3537,386.8119,0.0914397928295381
+"fill (gaps of 60 m)","urbano",182.3886,219.3858,83.1360097143936
+"fill (gaps of 60 m)","cultivo",8.7039,219.3858,3.96739442571032
+"fill (gaps of 60 m)","agua",0.0297,219.3858,0.0135377950623969
+"fill (gaps of 60 m)","natural",27.9774,219.3858,12.7526029487779
+"fill (gaps of 60 m)","sin_vegetacion",0.2547,219.3858,0.116096848565404
+"fill (gaps of 60 m)","no_observado",0.0315,219.3858,0.014358267490421
+"fill, dense tracts only","urbano",11.0502,11.7936,93.6965811965812
+"fill, dense tracts only","cultivo",0.2268,11.7936,1.92307692307692
+"fill, dense tracts only","agua",0,11.7936,0
+"fill, dense tracts only","natural",0.5166,11.7936,4.38034188034188
+"fill, dense tracts only","sin_vegetacion",0,11.7936,0
+"fill, dense tracts only","no_observado",0,11.7936,0
+"built outside the city","urbano",155.0313,219.9654,70.479857286646
+"built outside the city","cultivo",1.9503,219.9654,0.886639444203497
+"built outside the city","agua",0.0414,219.9654,0.0188211418704942
+"built outside the city","natural",54.1386,219.9654,24.6123253929936
+"built outside the city","sin_vegetacion",8.5356,219.9654,3.88042846738623
+"built outside the city","no_observado",0.162,219.9654,0.0736479464497598
