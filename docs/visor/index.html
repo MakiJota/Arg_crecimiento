@@ -177,8 +177,8 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
       <label>MapBiomas</label>
       <label class="chk"><input type="checkbox" id="mb-on"> show MapBiomas urban on top</label>
       <select id="mb-estilo">
-        <option value="borde">as an outline</option>
-        <option value="relleno">filled</option>
+        <option value="relleno">filled red</option>
+        <option value="borde">red outline</option>
       </select>
       <p class="ayuda" id="mb-nota"></p>
     </div>
@@ -463,7 +463,7 @@ const AVISOS = {
   salta: "Caution: the horticultural plots south of the city show as built-up; the dry bed of the Arenales river is kept as fringe.",
 };
 const st = { m: "t1", slug: null, anio: 2020, corte: 500, pct: 25, opac: 0.85, fondo: "landsat", perim: true, capa: "res",
-             relleno: "no", dist: 200, rellDenso: true, anillo: false, mbOn: false, mbEstilo: "borde", ocultas: new Set() };
+             relleno: "no", dist: 200, rellDenso: true, anillo: false, mbOn: false, mbEstilo: "relleno", ocultas: new Set() };
 let INDICE = null;
 const RADIOS = {}, CLASE = {}, RELLENO = {}, PCT = {};
 
@@ -753,7 +753,7 @@ async function dibujar(encuadrar) {
 }
 // MapBiomas encima de cualquier vista: huella de Angel sobre la clase urbana del anio del censo
 // (las dos + solo MapBiomas de Pedro); como borde (c = 2 o 3) o relleno semitransparente
-const MB_COL = "#ff2bd6";
+const MB_COL = "#d4271e";
 let lienzoMB = null, capaMB = null, capaMBslug = null;
 function pintarMB() {
   const c = ciudad(), M = PMBC[st.slug + st.anio];
@@ -763,7 +763,7 @@ function pintarMB() {
     if (capaMB) { map.removeLayer(capaMB); capaMB = null; }
   }
   const cx = lienzoMB.getContext("2d"), img = cx.createImageData(M.w, M.h), d = img.data, col = hex(MB_COL);
-  const borde = st.mbEstilo === "borde", a = borde ? 255 : 150;
+  const borde = st.mbEstilo === "borde", a = 255;
   for (let i = 0, j = 0; i < M.v.length; i++, j += 4) {
     const v = M.v[i], si = borde ? ((v >> 2) & 3) >= 2 : ((v & 3) === 1 || (v & 3) === 2);
     if (si) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = a; }
@@ -866,7 +866,7 @@ function leyenda() {
     h += item("fu", AMARILLO, "built outside the city");
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   }
-  h += `<li><label><input type="checkbox" id="mb-ley" ${st.mbOn ? "checked" : ""}><i style="${st.mbEstilo === "borde" ? `background:none;border:2px solid ${MB_COL};box-sizing:border-box` : `background:${MB_COL};opacity:.6`}"></i>MapBiomas urban, ${CENSO[st.anio]}</label></li>`;
+  h += `<li><label><input type="checkbox" id="mb-ley" ${st.mbOn ? "checked" : ""}><i style="${st.mbEstilo === "borde" ? `background:none;border:2px solid ${MB_COL};box-sizing:border-box` : `background:${MB_COL}`}"></i>MapBiomas urban, ${CENSO[st.anio]}</label></li>`;
   h += `<li><label><input type="checkbox" id="perim" ${st.perim ? "checked" : ""}><i style="background:#555;border:2px dashed #fff;box-sizing:border-box"></i>analysis perimeter</label></li>`;
   $("leyenda").innerHTML = h;
   $("leyenda").querySelectorAll("input[data-clase]").forEach(x => x.onchange = () => {
