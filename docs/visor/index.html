@@ -172,6 +172,9 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
         <option value="lim">Result + census tract limits</option>
         <option value="dens">Census tracts by density</option>
         <option value="mb">Compare with MapBiomas 2020</option>
+        <option value="pmb">MapBiomas vs GISD30, every census (Pedro)</option>
+        <option value="pmbc">MapBiomas vs GISD30: footprint outlines (Pedro)</option>
+        <option value="pmbk">MapBiomas vs GISD30: built-up outlines (Pedro)</option>
       </select>
       <p class="ayuda" id="mb-nota"></p>
     </div>
@@ -404,6 +407,36 @@ async function mapbiomas(slug) {
   }
   return MBC[slug];
 }
+// las manchas de Pedro (ag_43, plataforma/datos/<contorno>/manchas_<censo>.js), pasadas a la
+// grilla del visor por 15: R = b + 4 c + 16 k. b: huellas de Angel sobre GISD30 y sobre MapBiomas;
+// c: sus bordes; k: bordes de lo construido de cada fuente, sin la regla de Angel
+const PMB = {
+  p1: { c: "#8e44ad", t: "city for both (Angel footprint on GISD30 and on MapBiomas)" },
+  p2: { c: "#e8492a", t: "only MapBiomas (Pedro's \u201cexcess\u201d)" },
+  p3: { c: "#1f77b4", t: "only GISD30" },
+};
+const PMBB = {
+  e1: { c: "#00c8ff", t: "edge of GISD30 only" },
+  e2: { c: "#ff4020", t: "edge of MapBiomas only" },
+  e3: { c: "#ffffff", t: "both edges in the same place" },
+};
+const esPMB = () => st.capa.startsWith("pmb");
+const tienePMB = () => { const c = ciudad(); return !!(c && c.pedro_mb && c.pedro_mb.includes(st.anio)); };
+const PMBC = {};
+async function pedroMB(slug, anio) {
+  const k = slug + anio;
+  if (!PMBC[k]) {
+    const blob = await (await fetch(`${DATOS}${slug}/pedro_mb_${anio}.png`)).blob();
+    const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+    const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
+    const d = cx.getImageData(0, 0, bmp.width, bmp.height).data, n = bmp.width * bmp.height;
+    const v = new Uint8Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) v[i] = d[j];
+    PMBC[k] = { w: bmp.width, h: bmp.height, v };
+  }
+  return PMBC[k];
+}
 const tieneMB = () => { const c = ciudad(); return !!(c && c.mapbiomas); };
 const DENS_CORTES = [300, 500, 1000, 2000, 3000, 4000, 5000];
 const DENS_COL = ["#f0f4fa", "#d6e3f2", "#b3cde8", "#86afd9", "#5b8ec7", "#3a6fae", "#22528e", "#0b2642"];
@@ -587,6 +620,19 @@ function pintar(cl) {
     lienzo = document.createElement("canvas"); lienzo.width = cl.w; lienzo.height = cl.h; lienzo.className = "pixelado";
   }
   const cx = lienzo.getContext("2d"), img = cx.createImageData(cl.w, cl.h), d = img.data, rid = cl.rid;
+  if (esPMB()) {
+    const M = PMBC[st.slug + st.anio];
+    if (M && M.w === cl.w && M.h === cl.h) {
+      const fill = st.capa === "pmb", sh = st.capa === "pmbc" ? 2 : 4, P = fill ? PMB : PMBB, pre = fill ? "p" : "e";
+      const pm = [null, 1, 2, 3].map(c => c && !st.ocultas.has(pre + c) ? hex(P[pre + c].c) : null);
+      for (let i = 0, j = 0; i < M.v.length; i++, j += 4) {
+        const col = pm[fill ? M.v[i] & 3 : (M.v[i] >> sh) & 3];
+        if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+      }
+    }
+    cx.putImageData(img, 0, 0);
+    return lienzo;
+  }
   if (st.capa === "mb") {
     const M = MBC[st.slug];
     if (M && M.w === cl.w && M.h === cl.h) {
@@ -640,7 +686,7 @@ function textoRadio(j) {
   return h + `<br>Gross density: ${fmt0(R.personas[j] / R.area[j])} p/km²`;
 }
 async function ponerRadios() {
-  if (st.capa === "res") { if (capaRadios) { map.removeLayer(capaRadios); capaRadios = null; radiosClave = null; } return; }
+  if (st.capa === "res" || esPMB()) { if (capaRadios) { map.removeLayer(capaRadios); capaRadios = null; radiosClave = null; } return; }
   densoActual = densos(corteActual());
   const clave = st.slug + st.anio;
   if (radiosClave !== clave) {
@@ -665,6 +711,7 @@ async function dibujar(encuadrar) {
     const cl = await clase(st.slug, st.anio);
     FILL = await prepararRelleno(st.slug);
     if (st.capa === "mb" && tieneMB()) await mapbiomas(st.slug);
+    if (esPMB() && tienePMB()) await pedroMB(st.slug, st.anio);
     const cv = pintar(cl);
     if (ciudadActual !== st.slug || !capaClase) {
       if (capaClase) map.removeLayer(capaClase);
@@ -692,7 +739,12 @@ async function rapido() {
   if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
   capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
   await ponerRadios();
-  $("mb-nota").textContent = st.capa !== "mb" ? "" : !tieneMB() ? "No MapBiomas comparison for this agglomeration."
+  $("mb-nota").textContent = esPMB()
+    ? (!tienePMB() ? "Pedro's comparison is not available for this agglomeration and year."
+      : `Pedro's comparison (platform, Pruebas tab): MapBiomas ${CENSO[st.anio]} against GISD30 ${st.anio}, both through the Angel rule `
+        + "(urban + suburban + fringe + captured), clipped to the analysis perimeter. Footprints, not pixels: compare with "
+        + "\u201cNo cut: the Angel extent\u201d, not with built-up.")
+    : st.capa !== "mb" ? "" : !tieneMB() ? "No MapBiomas comparison for this agglomeration."
     : "MapBiomas Argentina collection 2, 2020 (Source Cooperative copy), against the GISD30 city of 2020. Only 2020: the year is fixed.";
   ayudaCorte(); leyenda(); panelDerecho(); guardarHash();
 }
@@ -719,6 +771,8 @@ map.on("click", e => {
     const h = (R >> 4) & 3, s = ["< 60 %", "60–69 %", "70–79 %", "≥ 80 %"][R >> 6];
     extra = `<br>From the city edge: ${dcl} · gap: ${h ? "closed at " + 30 * h + " m" : "not a narrow gap"} · built within 150 m: ${s}`;
   }
+  const Q = PMBC[st.slug + st.anio];
+  if (esPMB() && Q && Q.w === cl.w) extra += `<br>Pedro, ${CENSO[st.anio]}: <b>${["outside both footprints", "city for both", "only MapBiomas", "only GISD30"][Q.v[i] & 3]}</b>`;
   const M = MBC[st.slug];
   if (M && st.anio === 2020 && M.w === cl.w) extra += `<br>MapBiomas 2020: <b>${MB_NOMBRE[M.cod[i]] || "no data"}</b>`;
   L.popup().setLatLng(e.latlng).setContent(`<b>Pixel: ${tipo}</b>${extra}<br>` + (r > 0 ? textoRadio(r - 1) : "No census tract here")).openOn(map);
@@ -740,7 +794,12 @@ function leyenda() {
   const E = ETQ[st.m], COL = colores(st.m);
   const item = (clave, color, texto) => `<li><label><input type="checkbox" data-clase="${clave}" ${st.ocultas.has(clave) ? "" : "checked"}><i style="background:${color}"></i>${texto}</label></li>`;
   let h = "";
-  if (st.capa === "mb") {
+  if (esPMB()) {
+    const P = st.capa === "pmb" ? PMB : PMBB;
+    if (st.capa === "pmbk") h += `<li style="color:var(--ink)">Edges of the built-up pixels of each source, no Angel rule</li>`;
+    else if (st.capa === "pmbc") h += `<li style="color:var(--ink)">Edges of each Angel footprint</li>`;
+    for (const [c, v] of Object.entries(P)) h += item(c, v.c, v.t);
+  } else if (st.capa === "mb") {
     for (const [c, v] of Object.entries(MB)) h += item(c, v.c, v.t);
     h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   } else if (st.capa === "dens") {
@@ -1022,7 +1081,7 @@ function leerHash() {
   if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (opciones("t2").includes(t)) st.corte = t; }
   if (h.p) { const p = h.p === "inf" ? Infinity : Number(h.p); if (opciones("t3").includes(p)) st.pct = p; }
   if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
-  if (["res", "lim", "dens", "mb"].includes(h.l)) st.capa = h.l;
+  if (["res", "lim", "dens", "mb", "pmb", "pmbc", "pmbk"].includes(h.l)) st.capa = h.l;
   if (st.capa === "mb") st.anio = 2020;
   if (["no", "h30", "h60", "h90", "s60", "s70", "s80"].includes(h.r)) st.relleno = h.r;
   if (["100", "200", "400"].includes(h.d)) st.dist = Number(h.d);

@@ -259,6 +259,25 @@ paired with the 2022 census; 1990-2010 wait for Pedro's tract tables (`radios_ma
 **Caveat.** MapBiomas is another classification, not ground truth. It can call a tree-covered
 neighbourhood pasture, and it does not distinguish a vineyard with houses from a vineyard.
 
+**Every census: Pedro's layers (viewer only).** Pedro compared MapBiomas and GISD30 for the four
+censuses in `scripts/ag_43_manchas_contraste.py` (platform, Pruebas tab), before the bucket
+closed. His layers ship in the repo as `plataforma/datos/<agglomeration>/manchas_<census>.js`.
+Step 15 decodes them onto the viewer grid (`pedro_mb_<year>.png`), and the viewer shows them as
+three options under "Show on the map".
+
+- **What they compare.** MapBiomas class 24 of the census year (1991, 2001, 2010, 2022) against
+  the GISD30 cut paired with it (1990, 2000, 2010, 2020). Both go through the Angel rule (urban +
+  suburban + fringe + captured), and the result is clipped to the analysis perimeter.
+- **Classes.** Both / only MapBiomas / only GISD30, plus the outlines of each footprint and of
+  each source's raw built-up.
+- **What to compare them with.** These are footprints, not pixels: compare with the Angel extent
+  (no cut), not with built-up.
+- **Check.** The decoded shares match Pedro's table for Salta in every census. For example, in
+  1991 the ratio both : only MapBiomas : only GISD30 is 1 : 1.465 : 0.021 here and
+  1 : 1.467 : 0.021 in his table.
+- **Coverage.** The viewer grid is the 2020 city plus 3 km, so any part of the perimeter beyond
+  that frame is not shown.
+
 ## Caveats common to all
 
 - **The tract is the unit.** One dense block keeps or admits all the land of its tract. The

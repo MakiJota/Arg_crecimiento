@@ -20,6 +20,8 @@
 # y datos/indice.json con nombre, limites, perimetro y que capas tiene cada ciudad.
 #
 #   mapbiomas_2020.png  comparacion con MapBiomas 2020 (paso 17), si existe
+#   pedro_mb_<anio>.png las manchas GISD30 contra MapBiomas de Pedro (ag_43), por censo: R = b +
+#                       4 c + 16 k (ver pedro_mb). Lee ../plataforma/datos/<contorno>/manchas_*.js
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
 #           outputs/mapbiomas/<slug>/mapbiomas_2020.tif (17, opcional),
 #           outputs/landsat/<slug>/landsat_<anio>.tif (02)
@@ -49,6 +51,46 @@ SAL <- file.path(RPIPE, "docs", "visor", "datos")
 TODAS <- sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
 CIUDADES <- if (is.na(match("--ciudades", args))) TODAS else strsplit(arg("--ciudades", ""), ",")[[1]]
 MERC <- "EPSG:3857"
+
+
+pedro_mb <- function(contorno, censo, plantilla) {
+  # Las manchas de Pedro (scripts/ag_43_manchas_contraste.py, publicadas en
+  # plataforma/datos/<contorno>/manchas_<censo>.js): huella de Angel sobre GISD30 contra la de
+  # MapBiomas (clase 24, coleccion 2, anio del censo), recortadas al perimetro de analisis.
+  # Vienen en bloques de hasta 1024 px ya en Web Mercator, un WebP RGBA por clase:
+  #   b: 1 las dos, 2 solo MapBiomas, 3 solo GISD30
+  #   c: borde de cada huella   (1 solo GISD30, 2 solo MapBiomas, 3 los dos)
+  #   k: borde de lo construido (idem, sin la regla de Angel)
+  # Devuelve b + 4 c + 16 k sobre la plantilla, o NULL si no hay archivo.
+  f <- file.path(dirname(RPIPE), "plataforma", "datos", contorno, sprintf("manchas_%s.js", censo))
+  if (!nzchar(contorno) || !file.exists(f)) return(NULL)
+  s <- readChar(f, file.size(f), useBytes = TRUE)
+  d <- jsonlite::fromJSON(substr(s, regexpr("{", s, fixed = TRUE), max(gregexpr("}", s, fixed = TRUE)[[1]])),
+                          simplifyVector = FALSE)
+  merc <- function(lat) 6378137 * log(tan(pi / 4 + lat * pi / 360))
+  capa <- function(bloques) {
+    out <- plantilla * 0
+    for (b in bloques) {
+      for (i in seq_along(b)[-(1:4)]) {
+        if (!nzchar(b[[i]])) next
+        tmp <- tempfile(fileext = ".webp")
+        writeBin(jsonlite::base64_dec(b[[i]]), tmp)
+        im <- rast(tmp)
+        # alfa: 255 donde esta la clase. OJO: el WebP no trae georreferencia y terra lo lee
+        # dado vuelta (fila 1 abajo; comprobado contra PIL el 2026-11-17), asi que se rearma
+        # desde la matriz invertida, con la caja del bloque
+        m <- as.matrix(im[[nlyr(im)]], wide = TRUE)
+        a <- rast(ifelse(m[nrow(m):1, , drop = FALSE] > 0, i - 4, NA), crs = MERC,
+                  extent = ext(6378137 * b[[2]] * pi / 180, 6378137 * b[[4]] * pi / 180, merc(b[[1]]), merc(b[[3]])))
+        a <- resample(a, plantilla, method = "near")
+        out <- cover(a, out)
+        unlink(tmp)
+      }
+    }
+    ifel(is.na(out), 0, out)
+  }
+  capa(d$b) + 4 * capa(d$c) + 16 * capa(d$k)
+}
 
 
 png_rgb <- function(r, archivo, tipo = "PNG", ...) {
@@ -126,6 +168,15 @@ una <- function(slug) {
     png_rgb(c(cl[[1]], cl[[2]], cl[[1]] * 0), file.path(dir, "mapbiomas_2020.png"), "PNG", gdal = "ZLEVEL=9")
   }
 
+  # las manchas de Pedro para los cuatro censos (ver pedro_mb)
+  pedro <- integer(0)
+  for (a in ANIOS) {
+    p <- pedro_mb(caja_de(RPIPE, slug)$contorno, CENSO[[as.character(a)]], plantilla)
+    if (is.null(p)) next
+    png_rgb(c(p, p * 0, p * 0), file.path(dir, sprintf("pedro_mb_%d.png", a)), "PNG", gdal = "ZLEVEL=9")
+    pedro <- c(pedro, a)
+  }
+
   e <- as.vector(ext(plantilla))
   esq <- project(vect(rbind(c(e[["xmin"]], e[["ymin"]]), c(e[["xmax"]], e[["ymax"]])), crs = MERC), "EPSG:4326")
   esq <- crds(esq)
@@ -135,7 +186,7 @@ una <- function(slug) {
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
-       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas,
+       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro),
        perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
 }
 

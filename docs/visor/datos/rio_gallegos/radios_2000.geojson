@@ -1,6 +1,6 @@
 {
 "type": "FeatureCollection",
-"name": "file19ad47ce736a1",
+"name": "file50e4543a5057",
 "xy_coordinate_resolution": 1e-05,
 "features": [
 { "type": "Feature", "properties": { "i": 1 }, "geometry": { "type": "MultiPolygon", "coordinates": [ [ [ [ -69.22706, -51.63956 ], [ -69.22586, -51.63769 ], [ -69.22459, -51.63661 ], [ -69.22477, -51.63652 ], [ -69.22414, -51.63599 ], [ -69.22789, -51.63497 ], [ -69.22837, -51.63596 ], [ -69.23009, -51.63868 ], [ -69.22706, -51.63956 ] ] ] ] } },
