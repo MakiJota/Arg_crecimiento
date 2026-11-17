@@ -171,7 +171,14 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
         <option value="res">Result of the method</option>
         <option value="lim">Result + census tract limits</option>
         <option value="dens">Census tracts by density</option>
-        <option value="mbu">MapBiomas urban</option>
+      </select>
+    </div>
+    <div class="paso">
+      <label>MapBiomas</label>
+      <label class="chk"><input type="checkbox" id="mb-on"> show MapBiomas urban on top</label>
+      <select id="mb-estilo">
+        <option value="borde">as an outline</option>
+        <option value="relleno">filled</option>
       </select>
       <p class="ayuda" id="mb-nota"></p>
     </div>
@@ -456,7 +463,7 @@ const AVISOS = {
   salta: "Caution: the horticultural plots south of the city show as built-up; the dry bed of the Arenales river is kept as fringe.",
 };
 const st = { m: "t1", slug: null, anio: 2020, corte: 500, pct: 25, opac: 0.85, fondo: "landsat", perim: true, capa: "res",
-             relleno: "no", dist: 200, rellDenso: true, anillo: false, ocultas: new Set() };
+             relleno: "no", dist: 200, rellDenso: true, anillo: false, mbOn: false, mbEstilo: "borde", ocultas: new Set() };
 let INDICE = null;
 const RADIOS = {}, CLASE = {}, RELLENO = {}, PCT = {};
 
@@ -566,6 +573,8 @@ map.createPane("landsat").style.zIndex = 250;
 map.createPane("clases").style.zIndex = 400;
 map.createPane("radios").style.zIndex = 420;
 map.createPane("perimetro").style.zIndex = 450;
+map.createPane("mapbiomas").style.zIndex = 440;
+map.getPane("mapbiomas").style.pointerEvents = "none";
 const BASES = {
   carto: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }),
   esri: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Imagery © Esri, Maxar, Earthstar Geographics", maxZoom: 19 }),
@@ -720,7 +729,7 @@ async function dibujar(encuadrar) {
     const cl = await clase(st.slug, st.anio);
     FILL = await prepararRelleno(st.slug);
     if (st.capa === "mb" && tieneMB()) await mapbiomas(st.slug);
-    if (esPMB() && tienePMB()) await pedroMB(st.slug, st.anio);
+    if ((esPMB() || st.mbOn) && tienePMB()) await pedroMB(st.slug, st.anio);
     const cv = pintar(cl);
     if (ciudadActual !== st.slug || !capaClase) {
       if (capaClase) map.removeLayer(capaClase);
@@ -742,13 +751,39 @@ async function dibujar(encuadrar) {
     alert("Could not load the data. If you opened the file directly, serve the folder instead (see README): " + e.message);
   } finally { $("cargando").style.display = "none"; }
 }
+// MapBiomas encima de cualquier vista: huella de Angel sobre la clase urbana del anio del censo
+// (las dos + solo MapBiomas de Pedro); como borde (c = 2 o 3) o relleno semitransparente
+const MB_COL = "#ff2bd6";
+let lienzoMB = null, capaMB = null, capaMBslug = null;
+function pintarMB() {
+  const c = ciudad(), M = PMBC[st.slug + st.anio];
+  if (!st.mbOn || !M) { if (capaMB) { map.removeLayer(capaMB); capaMB = null; capaMBslug = null; } return; }
+  if (!lienzoMB || lienzoMB.width !== M.w || lienzoMB.height !== M.h) {
+    lienzoMB = document.createElement("canvas"); lienzoMB.width = M.w; lienzoMB.height = M.h; lienzoMB.className = "pixelado";
+    if (capaMB) { map.removeLayer(capaMB); capaMB = null; }
+  }
+  const cx = lienzoMB.getContext("2d"), img = cx.createImageData(M.w, M.h), d = img.data, col = hex(MB_COL);
+  const borde = st.mbEstilo === "borde", a = borde ? 255 : 150;
+  for (let i = 0, j = 0; i < M.v.length; i++, j += 4) {
+    const v = M.v[i], si = borde ? ((v >> 2) & 3) >= 2 : ((v & 3) === 1 || (v & 3) === 2);
+    if (si) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = a; }
+  }
+  cx.putImageData(img, 0, 0);
+  if (!capaMB || capaMBslug !== st.slug) {
+    if (capaMB) map.removeLayer(capaMB);
+    capaMB = L.svgOverlay(lienzoMB, c.limites, { pane: "mapbiomas", interactive: false }).addTo(map);
+    capaMBslug = st.slug;
+  }
+}
 async function rapido() {
   // lo que cambia con el corte o las capas, sin volver a cargar datos
   pintar(CLASE[st.slug + st.anio]);
   if (st.perim) capaPerim.addTo(map); else map.removeLayer(capaPerim);
   capaClase.setOpacity(st.capa === "dens" ? 0 : st.opac);
   await ponerRadios();
-  $("mb-nota").textContent = st.capa === "mbu"
+  pintarMB();
+  $("mb-on").checked = st.mbOn; $("mb-estilo").value = st.mbEstilo; $("mb-estilo").disabled = !st.mbOn;
+  $("mb-nota").textContent = st.mbOn
     ? (!tienePMB() ? "No MapBiomas layer for this agglomeration and year."
       : `MapBiomas Argentina collection 2, year ${CENSO[st.anio]} (the census year), urban area class through the Angel rule `
         + "(urban + suburban + fringe + captured), clipped to the analysis perimeter. From Pedro's platform layers.")
@@ -785,7 +820,7 @@ map.on("click", e => {
     extra = `<br>From the city edge: ${dcl} · gap: ${h ? "closed at " + 30 * h + " m" : "not a narrow gap"} · built within 150 m: ${s}`;
   }
   const Q = PMBC[st.slug + st.anio];
-  if (st.capa === "mbu" && Q && Q.w === cl.w) extra += `<br>MapBiomas ${CENSO[st.anio]}: <b>${[1, 2].includes(Q.v[i] & 3) ? "urban" : "not urban"}</b>`;
+  if ((st.capa === "mbu" || st.mbOn) && Q && Q.w === cl.w) extra += `<br>MapBiomas ${CENSO[st.anio]}: <b>${[1, 2].includes(Q.v[i] & 3) ? "urban" : "not urban"}</b>`;
   else if (esPMB() && Q && Q.w === cl.w) extra += `<br>Pedro, ${CENSO[st.anio]}: <b>${["outside both footprints", "city for both", "only MapBiomas", "only GISD30"][Q.v[i] & 3]}</b>`;
   const M = MBC[st.slug];
   if (M && st.anio === 2020 && M.w === cl.w) extra += `<br>MapBiomas 2020: <b>${MB_NOMBRE[M.cod[i]] || "no data"}</b>`;
@@ -831,6 +866,7 @@ function leyenda() {
     h += item("fu", AMARILLO, "built outside the city");
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   }
+  h += `<li><label><input type="checkbox" id="mb-ley" ${st.mbOn ? "checked" : ""}><i style="${st.mbEstilo === "borde" ? `background:none;border:2px solid ${MB_COL};box-sizing:border-box` : `background:${MB_COL};opacity:.6`}"></i>MapBiomas urban, ${CENSO[st.anio]}</label></li>`;
   h += `<li><label><input type="checkbox" id="perim" ${st.perim ? "checked" : ""}><i style="background:#555;border:2px dashed #fff;box-sizing:border-box"></i>analysis perimeter</label></li>`;
   $("leyenda").innerHTML = h;
   $("leyenda").querySelectorAll("input[data-clase]").forEach(x => x.onchange = () => {
@@ -838,6 +874,7 @@ function leyenda() {
     rapido();
   });
   $("perim").onchange = e => { st.perim = e.target.checked; rapido(); };
+  $("mb-ley").onchange = e => { st.mbOn = e.target.checked; dibujar(false); };
 }
 function llenarCortes(sel, m, actual) {
   sel.innerHTML = opciones(m).map(v => `<option value="${v}" ${v === actual ? "selected" : ""}>${etqOp(m, v)}</option>`).join("");
@@ -1087,7 +1124,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  history.replaceState(null, "", `#m=${st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}`);
+  history.replaceState(null, "", `#m=${st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
   const h = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
@@ -1097,7 +1134,10 @@ function leerHash() {
   if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (opciones("t2").includes(t)) st.corte = t; }
   if (h.p) { const p = h.p === "inf" ? Infinity : Number(h.p); if (opciones("t3").includes(p)) st.pct = p; }
   if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
-  if (["res", "lim", "dens", "mbu"].includes(h.l)) st.capa = h.l;
+  if (["res", "lim", "dens"].includes(h.l)) st.capa = h.l;
+  if (h.l === "mbu") st.mbOn = true;
+  if (h.mb) st.mbOn = h.mb === "1";
+  if (["borde", "relleno"].includes(h.me)) st.mbEstilo = h.me;
   if (st.capa === "mb") st.anio = 2020;
   if (["no", "h30", "h60", "h90", "s60", "s70", "s80"].includes(h.r)) st.relleno = h.r;
   if (["100", "200", "400"].includes(h.d)) st.dist = Number(h.d);
@@ -1145,6 +1185,8 @@ async function iniciar() {
   $("dist").onchange = e => { st.dist = Number(e.target.value); dibujar(false); };
   $("rell-denso").onchange = e => { st.rellDenso = e.target.checked; rapido(); };
   $("anillo").onchange = e => { st.anillo = e.target.checked; rapido(); };
+  $("mb-on").onchange = e => { st.mbOn = e.target.checked; dibujar(false); };
+  $("mb-estilo").onchange = e => { st.mbEstilo = e.target.value; rapido(); };
   document.querySelectorAll("nav button").forEach(b => b.onclick = () => vista(b.dataset.vista));
   document.querySelectorAll("#m-pestanas button").forEach(b => b.onclick = () => pestana(b.dataset.p));
   document.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => pestana(b.dataset.ir));
