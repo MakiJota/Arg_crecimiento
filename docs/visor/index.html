@@ -789,7 +789,9 @@ async function rapido() {
   $("mb-nota").textContent = st.mbOn
     ? (!tienePMB() ? "No MapBiomas layer for this agglomeration and year."
       : `MapBiomas Argentina collection 2, year ${CENSO[st.anio]} (the census year), urban area class through the Angel rule `
-        + "(urban + suburban + fringe + captured), clipped to the analysis perimeter. From Pedro's platform layers.")
+        + "(urban + suburban + fringe + captured), clipped to the analysis perimeter. From Pedro's platform layers. "
+        + "Caution: MapBiomas 1991 and 2001 already look like the recent city (in 28 of 31 agglomerations the 1991 layer is closer to "
+        + "the GISD30 city of 2020 than of 1990, and in Salta it covers fields that the 1990 Landsat shows as farmland). Do not use it to date growth.")
     : esPMB()
     ? (!tienePMB() ? "Pedro's comparison is not available for this agglomeration and year."
       : `Pedro's comparison (platform, Pruebas tab): MapBiomas ${CENSO[st.anio]} against GISD30 ${st.anio}, both through the Angel rule `
