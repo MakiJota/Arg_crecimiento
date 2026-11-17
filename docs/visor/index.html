@@ -193,6 +193,7 @@ footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1
       <select id="fondo">
         <option value="landsat">Landsat of the selected year</option>
         <option value="esri">Present-day imagery (Esri)</option>
+        <option value="osm">Streets (OpenStreetMap)</option>
         <option value="carto">Light map</option>
       </select>
       <p class="ayuda" id="fondo-nota"></p>
@@ -579,6 +580,7 @@ map.createPane("mapbiomas").style.zIndex = 440;
 map.getPane("mapbiomas").style.pointerEvents = "none";
 const BASES = {
   carto: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }),
+  osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors", maxZoom: 19 }),
   esri: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Imagery © Esri, Maxar, Earthstar Geographics", maxZoom: 19 }),
 };
 L.control.scale({ imperial: false }).addTo(map);
@@ -599,7 +601,8 @@ function ponerFondo() {
   }
   $("fondo-nota").textContent = st.fondo === "landsat" && !tiene
     ? `No Landsat composite for ${c.nombre} in ${st.anio}: no background.`
-    : st.fondo === "esri" ? "Present-day imagery, not the selected year." : "";
+    : st.fondo === "esri" ? "Present-day imagery, not the selected year."
+    : st.fondo === "osm" ? "Present-day streets and places (OpenStreetMap), not the selected year." : "";
 }
 
 function densos(k) {
@@ -1138,7 +1141,7 @@ function leerHash() {
   if (ANIOS.includes(Number(h.y))) st.anio = Number(h.y);
   if (h.t) { const t = h.t === "inf" ? Infinity : Number(h.t); if (opciones("t2").includes(t)) st.corte = t; }
   if (h.p) { const p = h.p === "inf" ? Infinity : Number(h.p); if (opciones("t3").includes(p)) st.pct = p; }
-  if (["landsat", "esri", "carto"].includes(h.f)) st.fondo = h.f;
+  if (["landsat", "esri", "osm", "carto"].includes(h.f)) st.fondo = h.f;
   if (["res", "lim", "dens"].includes(h.l)) st.capa = h.l;
   if (h.l === "mbu") st.mbOn = true;
   if (h.mb) st.mbOn = h.mb === "1";
