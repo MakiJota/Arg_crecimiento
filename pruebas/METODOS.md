@@ -279,6 +279,37 @@ classes are kept in the file but not shown.
 - **Coverage.** The viewer grid is the 2020 city plus 3 km, so any part of the perimeter beyond
   that frame is not shown.
 
+## Three rules on the Angel classes (`scripts/18_parches.R`, four-city viewer)
+
+Goal: correct what GISD30 gets wrong inside the city, mostly in 1990, without touching the edge.
+All thresholds are percentiles of each city's own tracts, in steps of 5, as in test 3.
+
+1. **Edge ring.** Open land within D m of the city edge (100, 200 or 400 m, from the distance of
+   step 16) is Angel's fringe and stays open.
+2. **Small holes inside.** Open land beyond the ring is grouped in patches of pixels that touch by
+   a side.
+   - A patch up to a chosen size (0.5 / 1 / 2 / 5 / 20 ha) turns into built-up if its tract is at
+     or above percentile p of the city's tract densities (persons per km² urbanized). Larger
+     patches stay open. Water and its banks never fill.
+   - Optionally, open pixels in a narrow gap between built pixels (closing of 30 / 60 / 90 m, step
+     16) also fill, whatever the size of their patch.
+   - Why both: with patch size alone little fills in old centres, because the missed pixels form
+     one connected web. Salta 1990, D 200 m, dense tracts at p25: patches up to 2 ha fill 2.3 km²;
+     adding gaps up to 60 m fills 4.7 km².
+   - Patches use 4 neighbours: with 8, pixels touching only at a corner join into large webs.
+3. **Built-up in near-empty tracts.** The floor is percentile p of the city's tract densities
+   over built-up (persons per km² built).
+   - A tract below the floor keeps only *persons ÷ floor* km² of built-up. Kept first are the
+     pixels with the most built-up within 150 m.
+   - Pixels with at least S % built-up around (60-90 %) are always kept, so industry and airports,
+     which have few residents, are not trimmed.
+   - Aimed at irrigated or arid farmland that GISD30 marks as built (Salta, Mendoza, San Juan,
+     Rawson - Trelew).
+
+Rule 3 works on GISD30's built-up only; filled pixels are not trimmed. The viewer computes
+everything from per-tract pixel counts, calibrated with each tract's km² from step 11. The
+numbers are exploratory.
+
 ## Caveats common to all
 
 - **The tract is the unit.** One dense block keeps or admits all the land of its tract. The

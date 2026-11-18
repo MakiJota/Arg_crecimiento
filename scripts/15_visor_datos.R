@@ -20,6 +20,8 @@
 # y datos/indice.json con nombre, limites, perimetro y que capas tiene cada ciudad.
 #
 #   mapbiomas_2020.png  comparacion con MapBiomas 2020 (paso 17), si existe
+#   parches_<anio>.png  clases de parche del interior (paso 18) y solidez de lo construido; ver
+#                       parches_png. --solo-parches rehace solo estos
 #   pedro_mb_<anio>.png las manchas GISD30 contra MapBiomas de Pedro (ag_43), por censo: R = b +
 #                       4 c + 16 k (ver pedro_mb). Lee ../plataforma/datos/<contorno>/manchas_*.js
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
@@ -103,6 +105,27 @@ png_rgb <- function(r, archivo, tipo = "PNG", ...) {
 }
 
 
+parches_png <- function(slug, x, plantilla, dir) {
+  # parches_<anio>.png para el visor de cuatro ciudades (paso 18): R = clase del parche con
+  # D = 100 + 8 * clase con D = 200, G = clase con D = 400 (0 no interior, 1-6 tamano, 7 agua),
+  # B = % construido en 150 m de los pixeles construidos de la ciudad (paso 16; 0 en el resto),
+  # que ordena que construido se conserva cuando la regla 3 recorta un radio
+  hechos <- integer(0)
+  for (a in ANIOS) {
+    fp <- file.path(RPIPE, "outputs", "parches", slug, sprintf("parches_%d.tif", a))
+    fr <- file.path(REGLAS, slug, sprintf("reglas_%d.tif", a))
+    if (!file.exists(fp) || !file.exists(fr)) next
+    p <- rast(fp); rr <- rast(fr); code <- x[[as.character(a)]]$code
+    sol <- ifel(code == 1, rr$share, 0)
+    r <- project(c(p$d100 + 8 * p$d200, p$d400, sol), plantilla, method = "near")
+    r <- ifel(is.na(r), 0, r)
+    png_rgb(r, file.path(dir, sprintf("parches_%d.png", a)), "PNG", gdal = "ZLEVEL=9")
+    hechos <- c(hechos, a)
+  }
+  hechos
+}
+
+
 una <- function(slug) {
   t0 <- Sys.time()
   x <- cargar_densidad(RPIPE, slug)
@@ -168,6 +191,8 @@ una <- function(slug) {
     png_rgb(c(cl[[1]], cl[[2]], cl[[1]] * 0), file.path(dir, "mapbiomas_2020.png"), "PNG", gdal = "ZLEVEL=9")
   }
 
+  parches <- parches_png(slug, x, plantilla, dir)
+
   # las manchas de Pedro para los cuatro censos (ver pedro_mb)
   pedro <- integer(0)
   for (a in ANIOS) {
@@ -186,17 +211,32 @@ una <- function(slug) {
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
-       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro),
+       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches),
        perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
 }
 
 
-cat(sprintf("Datos del visor · %d aglomerados\n", length(CIUDADES)))
 dir.create(SAL, recursive = TRUE, showWarnings = FALSE)
+f_ind <- file.path(SAL, "indice.json")
+
+if ("--solo-parches" %in% args) {
+  # solo los parches_<anio>.png (paso 18), sin rehacer el resto; marca el indice
+  ind <- jsonlite::read_json(f_ind)
+  for (s in CIUDADES) {
+    x <- cargar_densidad(RPIPE, s)
+    plantilla <- project(x[["2020"]]$code, MERC, method = "near")
+    h <- parches_png(s, x, plantilla, file.path(SAL, s))
+    for (k in seq_along(ind$ciudades)) if (ind$ciudades[[k]]$slug == s) ind$ciudades[[k]]$parches <- I(h)
+    cat(sprintf("  %-22s parches %s\n", s, paste(h, collapse = ",")))
+  }
+  jsonlite::write_json(ind, f_ind, auto_unbox = TRUE, digits = NA)
+  quit(save = "no")
+}
+
+cat(sprintf("Datos del visor · %d aglomerados\n", length(CIUDADES)))
 nuevas <- lapply(CIUDADES, function(s) tryCatch(una(s), error = function(e) {
   cat("  ERROR", s, ":", conditionMessage(e), "\n"); NULL }))
 names(nuevas) <- CIUDADES
-f_ind <- file.path(SAL, "indice.json")
 ind <- if (file.exists(f_ind)) jsonlite::read_json(f_ind) else list(ciudades = list())
 previas <- setNames(ind$ciudades, vapply(ind$ciudades, `[[`, "", "slug"))
 for (s in names(nuevas)) if (!is.null(nuevas[[s]])) previas[[s]] <- nuevas[[s]]

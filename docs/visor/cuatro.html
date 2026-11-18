@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four cities, three rules</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --bg: #fcfcfb; --panel: #ffffff; --ink: #0b0b0b; --ink2: #52514e; --ink3: #8a8983;
+  --line: #e6e5df; --accent: #1f4e79; --head: #0b2642; --head-ink: #f3f5f8; --warn: #c4622d;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); }
+body { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+header { background: var(--head); color: var(--head-ink); display: flex; align-items: center; gap: 18px; padding: 8px 18px; flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+header h1 small { display: block; font-weight: 400; font-size: 12px; color: #aebdd0; }
+header a { color: #c9d4e2; font-size: 13px; margin-left: auto; }
+main { display: grid; grid-template-columns: 265px 1fr 380px; min-height: 0; }
+aside { background: var(--panel); overflow-y: auto; padding: 14px; border: 0 solid var(--line); }
+#izq { border-right-width: 1px; } #der { border-left-width: 1px; }
+#mapas { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 3px; background: #cfcdc6; min-height: 0; }
+.mapa { position: relative; min-height: 220px; background: #eceae4; }
+.mapa .elegir { position: absolute; z-index: 800; top: 8px; left: 50px; width: 220px; font-size: 13px; padding: 4px 6px; }
+.paso { margin-bottom: 13px; }
+.paso > label, .rotulo { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--ink2); margin-bottom: 5px; font-weight: 600; }
+.paso > label b { color: var(--accent); margin-right: 4px; }
+select { width: 100%; font: inherit; font-size: 13.5px; padding: 6px 8px; border: 1px solid #cfcdc6; border-radius: 6px; background: #fff; color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.ayuda { font-size: 12px; color: var(--ink2); line-height: 1.45; margin: 5px 0 0; }
+.paso > label.chk { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 13px; margin-bottom: 0; }
+.chk { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink2); margin-top: 6px; cursor: pointer; }
+.fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.fila2 span { font-size: 11px; color: var(--ink3); display: block; margin-bottom: 2px; }
+.leyenda { list-style: none; padding: 0; margin: 4px 0 0; font-size: 12.5px; }
+.leyenda li { margin: 4px 0; }
+.leyenda label { display: flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink2); }
+.leyenda i { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.08); }
+.tarjeta { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--bg); }
+.tarjeta h2 { font-size: 14px; margin: 0 0 6px; display: flex; justify-content: space-between; gap: 8px; }
+.tarjeta h2 small { font-weight: 400; color: var(--ink3); font-size: 11.5px; }
+table.n { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.n td { padding: 2px 0; border-bottom: 1px solid var(--line); }
+table.n td:nth-child(n+2) { text-align: right; padding-left: 8px; }
+table.n tr.tot td { font-weight: 650; border-bottom: 0; }
+.mas { color: #2a9d8f; } .menos { color: #c4622d; }
+.graf { margin-top: 6px; }
+.graf .t { font-size: 11px; color: var(--ink2); margin: 6px 0 1px; }
+.graf svg { display: block; width: 100%; cursor: crosshair; }
+.graf svg text { font-size: 9.5px; fill: var(--ink3); }
+#cargando { position: absolute; z-index: 900; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 10px 14px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.2); display: none; font-size: 13px; }
+footer { font-size: 11.5px; color: var(--ink2); padding: 6px 14px; border-top: 1px solid var(--line); background: var(--panel); }
+canvas.pix, .pixelado { image-rendering: pixelated; }
+@media (max-width: 1100px) {
+  body { height: auto; } main { grid-template-columns: 1fr; }
+  #mapas { grid-template-columns: 1fr; grid-template-rows: none; } .mapa { height: 380px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Four cities, three rules on the Angel classes
+    <small>Exploratory · GISD30 + Angel classes, census tracts 1991-2022 · none of these numbers are project figures</small></h1>
+  <a href="index.html">← single-city viewer</a>
+</header>
+<main>
+  <aside id="izq">
+    <div class="paso">
+      <label for="anio">Year</label>
+      <select id="anio"></select>
+    </div>
+    <div class="paso">
+      <label for="D"><b>1</b>Edge ring (stays fringe)</label>
+      <select id="D">
+        <option value="100">100 m from the city edge</option>
+        <option value="200">200 m from the city edge</option>
+        <option value="400">400 m from the city edge</option>
+      </select>
+      <p class="ayuda">Open land this close to the edge of the city is Angel's fringe and is not touched.</p>
+    </div>
+    <div class="paso">
+      <label><b>2</b>Fill small holes inside</label>
+      <div class="fila2">
+        <div><span>patches up to</span>
+          <select id="tam">
+            <option value="0">no fill</option>
+            <option value="1">0.5 ha</option>
+            <option value="2">1 ha</option>
+            <option value="3">2 ha</option>
+            <option value="4">5 ha</option>
+            <option value="5">20 ha</option>
+          </select></div>
+        <div><span>in tracts from percentile</span><select id="p2"></select></div>
+      </div>
+      <div style="margin-top:6px"><span style="font-size:11px;color:var(--ink3)">also fill narrow gaps between built pixels</span>
+        <select id="gap"><option value="0">no</option><option value="1">up to 30 m</option><option value="2">up to 60 m</option><option value="3">up to 90 m</option></select></div>
+      <p class="ayuda">Open land beyond the ring is grouped in patches (pixels touching by a side). A patch up to this size, in a tract at or above
+        this percentile of the city's tract densities (persons per km² urbanized), turns into built-up. Larger patches stay open. Water never fills.
+        Narrow gaps: open pixels inside a gap between built pixels (the 60 m rule of the single-city viewer), whatever the size of their patch.</p>
+    </div>
+    <div class="paso">
+      <label><b>3</b>Trim built-up in near-empty tracts</label>
+      <label class="chk"><input type="checkbox" id="r3"> on</label>
+      <div class="fila2" style="margin-top:6px">
+        <div><span>floor: percentile</span><select id="p3"></select></div>
+        <div><span>always keep if built around ≥</span>
+          <select id="S">
+            <option value="60">60 %</option><option value="70">70 %</option><option value="80">80 %</option>
+            <option value="90">90 %</option><option value="101">no exception</option>
+          </select></div>
+      </div>
+      <p class="ayuda">Floor = this percentile of the city's tracts' persons per km² of built-up. A tract below the floor keeps only
+        <i>persons ÷ floor</i> km² of built-up: the pixels with most built-up within 150 m first. Solid fabric above the second setting
+        (industry, airports) is always kept.</p>
+    </div>
+    <div class="paso">
+      <label for="fondo">Background</label>
+      <select id="fondo">
+        <option value="landsat">Landsat of the selected year</option>
+        <option value="esri">Present-day imagery (Esri)</option>
+        <option value="osm">Streets (OpenStreetMap)</option>
+        <option value="carto">Light map</option>
+      </select>
+    </div>
+    <div class="paso">
+      <label for="opac">Transparency of the result</label>
+      <input type="range" id="opac" min="0" max="100" value="15">
+    </div>
+    <div class="paso">
+      <label>MapBiomas</label>
+      <label class="chk"><input type="checkbox" id="mb"> show MapBiomas urban (red)</label>
+      <input type="range" id="mbopac" min="0" max="100" value="40" style="margin-top:6px">
+      <p class="ayuda">Pedro's layers: MapBiomas of the census year through the Angel rule. Caution: 1991 and 2001 already look like the recent city.</p>
+    </div>
+    <div class="paso">
+      <label>On the map</label>
+      <ul class="leyenda" id="leyenda"></ul>
+    </div>
+  </aside>
+  <section id="mapas">
+    <div class="mapa" id="m0"></div><div class="mapa" id="m1"></div>
+    <div class="mapa" id="m2"></div><div class="mapa" id="m3"></div>
+    <div id="cargando">Loading…</div>
+  </section>
+  <aside id="der"><div id="tarjetas"></div></aside>
+</main>
+<footer>Exploratory. GISD30 (Zhang et al. 2022) with Angel / Atlas 2016 classes; census tracts CEUR-CONICET via Source Cooperative; Landsat Collection 2 (USGS);
+  water mask JRC GSW + OpenStreetMap; MapBiomas Argentina collection 2 (Pedro's layers). Click a pixel for its tract. Click a histogram to set that percentile.</footer>
+
+<script>
+const DATOS = "datos/";
+const ANIOS = [1990, 2000, 2010, 2020];
+const CENSO = { 1990: "1991", 2000: "2001", 2010: "2010", 2020: "2022" };
+const PCTS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
+const TAM_HA = ["", "0.5", "1", "2", "5", "20"];
+const MIN_CIUDAD = 0.10;
+const CLASES = {
+  b: { c: "#1f4e79", t: "built-up (GISD30)" },
+  f: { c: "#2a9d8f", t: "small hole filled as built-up (rule 2)" },
+  x: { c: "#f08a24", t: "built-up trimmed in a near-empty tract (rule 3)" },
+  r: { c: "#9ecae1", t: "edge ring: fringe, kept as open" },
+  o: { c: "#c7a4dd", t: "open land inside, kept (large patch, sparse tract or water)" },
+  u: { c: "#f2c500", t: "built outside the city" },
+};
+const MB_COL = "#d4271e";
+const $ = id => document.getElementById(id);
+const fmt0 = x => isFinite(x) ? Math.round(x).toLocaleString("en-US") : "–";
+const fmt1 = x => isFinite(x) ? x.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "–";
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const tasa = (a, b) => a > 0 && b > 0 ? 100 * (Math.pow(b / a, 1 / 30) - 1) : NaN;
+async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
+async function rgb(url) {
+  const blob = await (await fetch(url)).blob();
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+  const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+  const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
+  return { w: bmp.width, h: bmp.height, d: cx.getImageData(0, 0, bmp.width, bmp.height).data };
+}
+
+const st = { ciudades: ["salta", "tucuman", "catamarca", "mendoza"], anio: 1990, D: 200, tam: 3, gap: 0, p2: 25, r3: true, p3: 10, S: 80,
+             fondo: "landsat", opac: 0.85, mb: false, mbOpac: 0.6, ocultas: new Set() };
+let INDICE = null;
+const RADIOS = {}, DAT = {}, MBD = {};
+const ciudad = s => INDICE.ciudades.find(c => c.slug === s);
+
+// ---------- datos por ciudad y anio: pixeles e histogramas por radio ----------
+async function datos(slug, anio) {
+  const k = slug + anio;
+  if (DAT[k]) return DAT[k];
+  if (!RADIOS[slug]) RADIOS[slug] = await json(`${DATOS}${slug}/radios.json`);
+  const [cl, pa] = await Promise.all([rgb(`${DATOS}${slug}/clase_${anio}.png`), rgb(`${DATOS}${slug}/parches_${anio}.png`)]);
+  const n = cl.w * cl.h, nr = RADIOS[slug][anio].cod.length + 1;
+  const code = new Uint8Array(n), rid = new Uint16Array(n), pc = new Uint8Array(n), sh = new Uint8Array(n), hu = new Uint8Array(n);
+  // por radio: pixeles construidos y abiertos, abiertos por clase de parche (3 D x 8 clases),
+  // histograma de share de lo construido (0-100)
+  const nb = new Float64Array(nr), no = new Float64Array(nr), hp = [0, 1, 2].map(() => new Float64Array(nr * 32)), hs = new Float64Array(nr * 101);
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const c = cl.d[j] & 3, r = cl.d[j + 1] * 256 + cl.d[j + 2];
+    code[i] = c; rid[i] = r;
+    if (c === 1) { const s = Math.min(pa.d[j + 2], 100); sh[i] = s; nb[r]++; hs[r * 101 + s]++; }
+    else if (c === 2) {
+      const a = pa.d[j] & 7, b = (pa.d[j] >> 3) & 7, d = pa.d[j + 1] & 7;
+      const g = (cl.d[j] >> 4) & 3;
+      pc[i] = a | (b << 3); sh[i] = d; hu[i] = g;
+      no[r]++; hp[0][r * 32 + a * 4 + g]++; hp[1][r * 32 + b * 4 + g]++; hp[2][r * 32 + d * 4 + g]++;
+    }
+  }
+  DAT[k] = { w: cl.w, h: cl.h, code, rid, pc, sh, hu, nb, no, hp, hs };
+  return DAT[k];
+}
+async function mapbiomas(slug, anio) {
+  const k = slug + anio, c = ciudad(slug);
+  if (!c.pedro_mb || !c.pedro_mb.includes(anio)) return null;
+  if (!MBD[k]) { const p = await rgb(`${DATOS}${slug}/pedro_mb_${anio}.png`); const v = new Uint8Array(p.w * p.h);
+    for (let i = 0, j = 0; i < v.length; i++, j += 4) { const b = p.d[j] & 3; v[i] = b === 1 || b === 2 ? 1 : 0; }
+    MBD[k] = { w: p.w, h: p.h, v }; }
+  return MBD[k];
+}
+const llena = (c, g) => c >= 1 && c <= 6 && (c <= st.tam || (st.gap > 0 && g >= 1 && g <= st.gap));
+const claseParche = (X, i) => X.code[i] !== 2 ? -1 : st.D === 100 ? X.pc[i] & 7 : st.D === 200 ? (X.pc[i] >> 3) & 7 : X.sh[i];
+
+function percentil(v, p) {
+  // tipo 7, como quantile() de R
+  if (!v.length) return 0;
+  const x = v.slice().sort((a, b) => a - b), h = (x.length - 1) * p / 100, lo = Math.floor(h);
+  return lo + 1 < x.length ? x[lo] + (h - lo) * (x[lo + 1] - x[lo]) : x[lo];
+}
+
+// ---------- las tres reglas, sobre los histogramas (sin recorrer pixeles) ----------
+function calc(slug, anio) {
+  const X = DAT[slug + anio], Y = RADIOS[slug][anio], nr = X.nb.length, di = { 100: 0, 200: 1, 400: 2 }[st.D];
+  const du = [], db = [], kb = new Float64Array(nr), ko = new Float64Array(nr);
+  for (let r = 1; r < nr; r++) {
+    const j = r - 1, u = Y.construido[j] + Y.abierto[j];
+    kb[r] = X.nb[r] ? Y.construido[j] / X.nb[r] : 0; ko[r] = X.no[r] ? Y.abierto[j] / X.no[r] : 0;
+    if (u > 0 && u >= MIN_CIUDAD * Y.area[j]) {
+      if (Y.dens[j] >= 0) du.push(Y.dens[j]);
+      if (Y.construido[j] > 0) db.push(Y.personas[j] / Y.construido[j]);
+    }
+  }
+  const d2 = st.p2 === 0 ? 0 : percentil(du, st.p2), d3 = percentil(db, st.p3);
+  const denso = new Uint8Array(nr), t = new Int16Array(nr).fill(-1);
+  let built = 0, fill = 0, drop = 0, ring = 0, open = 0, pop = 0;
+  for (let r = 1; r < nr; r++) {
+    const j = r - 1, u = Y.construido[j] + Y.abierto[j];
+    if (u <= 0) continue;
+    pop += Y.personas[j]; built += Y.construido[j];
+    denso[r] = Y.dens[j] >= d2 ? 1 : 0;
+    const H = X.hp[di];
+    for (let g = 0; g < 4; g++) ring += H[r * 32 + g] * ko[r];
+    for (let c = 1; c <= 7; c++) for (let g = 0; g < 4; g++) {
+      const km = H[r * 32 + c * 4 + g] * ko[r];
+      if (llena(c, g) && denso[r]) fill += km; else open += km;
+    }
+    // regla 3: densidad sobre lo construido por debajo del piso -> se conserva personas / piso
+    if (st.r3 && st.p3 > 0 && Y.construido[j] > 0 && Y.personas[j] / Y.construido[j] < d3 && kb[r] > 0) {
+      const keep = Y.personas[j] / d3 / kb[r];
+      let n = 0;
+      for (let s = 100; s >= Math.min(st.S, 101); s--) n += X.hs[r * 101 + s];
+      let tr = Math.min(st.S, 101);
+      for (let s = tr - 1; s >= 0; s--) { const m = X.hs[r * 101 + s]; if (n + m > keep) break; n += m; tr = s; }
+      t[r] = tr;
+      drop += (X.nb[r] - n) * kb[r];
+    }
+  }
+  return { d2, d3, du, db, denso, t, built0: built, fill, drop, built1: built + fill - drop, ring, open, pop };
+}
+
+// ---------- mapas ----------
+const BASES = () => ({
+  carto: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", { attribution: "Tiles © Esri, HERE, Garmin, © OpenStreetMap", maxZoom: 16 }),
+  osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors", maxZoom: 19 }),
+  esri: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Imagery © Esri, Maxar, Earthstar Geographics", maxZoom: 19 }),
+});
+const M = [0, 1, 2, 3].map(q => {
+  const map = L.map("m" + q, { preferCanvas: true, attributionControl: true }).setView([-30, -64], 5);
+  for (const [p, z] of [["landsat", 250], ["clases", 400], ["mapbiomas", 440], ["perimetro", 450]]) map.createPane(p).style.zIndex = z;
+  map.getPane("mapbiomas").style.pointerEvents = "none";
+  L.control.scale({ imperial: false }).addTo(map);
+  const sel = document.createElement("select"); sel.className = "elegir"; $("m" + q).appendChild(sel);
+  L.DomEvent.disableClickPropagation(sel); L.DomEvent.disableScrollPropagation(sel);
+  sel.onchange = () => { st.ciudades[q] = sel.value; cargarMapa(q, true); };
+  const m = { map, sel, bases: BASES(), base: null, landsat: null, clase: null, cv: null, mbl: null, mbcv: null, perim: null, slug: null, R: null };
+  map.on("click", e => clic(q, e));
+  return m;
+});
+
+function fondo(q) {
+  const m = M[q], c = ciudad(st.ciudades[q]);
+  if (m.landsat) { m.map.removeLayer(m.landsat); m.landsat = null; }
+  const tile = st.fondo === "landsat" ? null : st.fondo;
+  if (m.base && m.base !== m.bases[tile]) { m.map.removeLayer(m.base); m.base = null; }
+  if (tile && !m.base) m.base = m.bases[tile].addTo(m.map);
+  if (st.fondo === "landsat" && c.landsat.includes(st.anio))
+    m.landsat = L.imageOverlay(`${DATOS}${c.slug}/landsat_${st.anio}.jpg`, c.limites, { pane: "landsat", attribution: "Landsat · USGS" }).addTo(m.map);
+}
+
+function pintar(q) {
+  const m = M[q], slug = st.ciudades[q], X = DAT[slug + st.anio], R = m.R;
+  if (!X || !R) return;
+  if (!m.cv || m.cv.width !== X.w || m.cv.height !== X.h) {
+    m.cv = document.createElement("canvas"); m.cv.width = X.w; m.cv.height = X.h; m.cv.className = "pixelado";
+    if (m.clase) { m.map.removeLayer(m.clase); m.clase = null; }
+  }
+  const pal = {}; for (const [k, v] of Object.entries(CLASES)) pal[k] = st.ocultas.has(k) ? null : hex(v.c);
+  const cx = m.cv.getContext("2d"), img = cx.createImageData(X.w, X.h), d = img.data;
+  for (let i = 0, j = 0; i < X.code.length; i++, j += 4) {
+    const k = clasePixel(X, R, i), col = k && pal[k];
+    if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+  }
+  cx.putImageData(img, 0, 0);
+  const c = ciudad(slug);
+  if (!m.clase || m.slug !== slug) {
+    if (m.clase) m.map.removeLayer(m.clase);
+    m.clase = L.svgOverlay(m.cv, c.limites, { pane: "clases", interactive: false }).addTo(m.map);
+  }
+  m.clase.setOpacity(st.opac);
+}
+function clasePixel(X, R, i) {
+  const c = X.code[i];
+  if (c === 0) return null;
+  if (c === 3) return "u";
+  const r = X.rid[i];
+  if (c === 1) return R.t[r] >= 0 && X.sh[i] < R.t[r] ? "x" : "b";
+  const p = claseParche(X, i);
+  if (p === 0) return "r";
+  return llena(p, X.hu[i]) && R.denso[r] ? "f" : "o";
+}
+
+async function pintarMB(q) {
+  const m = M[q], slug = st.ciudades[q], c = ciudad(slug);
+  const D = st.mb ? await mapbiomas(slug, st.anio) : null;
+  if (!D) { if (m.mbl) { m.map.removeLayer(m.mbl); m.mbl = null; } return; }
+  if (!m.mbcv || m.mbcv.width !== D.w || m.mbcv.height !== D.h) {
+    m.mbcv = document.createElement("canvas"); m.mbcv.width = D.w; m.mbcv.height = D.h; m.mbcv.className = "pixelado";
+    if (m.mbl) { m.map.removeLayer(m.mbl); m.mbl = null; }
+  }
+  const cx = m.mbcv.getContext("2d"), img = cx.createImageData(D.w, D.h), d = img.data, col = hex(MB_COL);
+  for (let i = 0, j = 0; i < D.v.length; i++, j += 4) if (D.v[i]) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
+  cx.putImageData(img, 0, 0);
+  if (!m.mbl || m.mbslug !== slug) {
+    if (m.mbl) m.map.removeLayer(m.mbl);
+    m.mbl = L.svgOverlay(m.mbcv, c.limites, { pane: "mapbiomas", interactive: false }).addTo(m.map);
+    m.mbslug = slug;
+  }
+  m.mbl.setOpacity(st.mbOpac);
+}
+
+async function cargarMapa(q, encuadrar) {
+  const m = M[q], slug = st.ciudades[q], c = ciudad(slug);
+  $("cargando").style.display = "block";
+  try {
+    await Promise.all(ANIOS.map(a => datos(slug, a)));
+    m.R = calc(slug, st.anio);
+    if (m.slug !== slug) {
+      if (m.perim) m.map.removeLayer(m.perim);
+      m.perim = L.layerGroup([
+        L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#111", weight: 5, opacity: 0.45, fill: false } }),
+        L.geoJSON(c.perimetro, { pane: "perimetro", interactive: false, style: { color: "#fff", weight: 2.8, fill: false, dashArray: "8 6" } })]).addTo(m.map);
+    }
+    if (encuadrar || m.slug !== slug) m.map.fitBounds(c.limites, { padding: [6, 6] });
+    fondo(q); pintar(q); await pintarMB(q);
+    m.slug = slug;
+  } catch (e) { console.error(e); alert("Could not load " + slug + ": " + e.message); }
+  finally { $("cargando").style.display = "none"; }
+  tarjetas(); guardarHash();
+}
+
+function clic(q, e) {
+  const m = M[q], slug = st.ciudades[q], c = ciudad(slug), X = DAT[slug + st.anio], R = m.R;
+  if (!X || !R) return;
+  const p = L.CRS.EPSG3857.project(e.latlng), a = L.CRS.EPSG3857.project(L.latLng(c.limites[0])), b = L.CRS.EPSG3857.project(L.latLng(c.limites[1]));
+  const px = Math.floor((p.x - a.x) / (b.x - a.x) * X.w), py = Math.floor((b.y - p.y) / (b.y - a.y) * X.h);
+  if (px < 0 || py < 0 || px >= X.w || py >= X.h) return;
+  const i = py * X.w + px, k = clasePixel(X, R, i), r = X.rid[i];
+  let h = `<b>${k ? CLASES[k].t : "outside the city"}</b>`;
+  if (X.code[i] === 1) h += `<br>${X.sh[i]} % built within 150 m`;
+  if (X.code[i] === 2) { const pp = claseParche(X, i); h += pp === 0 ? `<br>within ${st.D} m of the edge` : pp === 7 ? "<br>water or bank" : `<br>open patch ${pp === 6 ? "over 20 ha" : "up to " + TAM_HA[pp] + " ha"}` + (X.hu[i] ? ` · in a gap closed at ${30 * X.hu[i]} m` : ""); }
+  if (r > 0) {
+    const Y = RADIOS[slug][st.anio], j = r - 1;
+    h += `<br><br>Tract ${Y.cod[j]} · census ${CENSO[st.anio]}<br>${fmt0(Y.personas[j])} persons · ${fmt1(Y.construido[j])} km² built · ${fmt1(Y.abierto[j])} km² open`;
+    h += `<br>${fmt0(Y.dens[j])} p/km² urbanized (cut ${fmt0(R.d2)}: ${R.denso[r] ? "dense" : "sparse"})`;
+    if (Y.construido[j] > 0) h += `<br>${fmt0(Y.personas[j] / Y.construido[j])} p/km² built (floor ${fmt0(R.d3)}${R.t[r] >= 0 ? ": trimmed, keeps pixels with ≥ " + R.t[r] + " % built around" : ""})`;
+  }
+  L.popup().setLatLng(e.latlng).setContent(h).openOn(m.map);
+}
+
+// ---------- panel derecho ----------
+function histo(vals, corte, color, etq, onPick) {
+  // histograma en escala log de 50 a 50.000 p/km2, con la linea del corte
+  const W = 340, Hh = 70, x0 = Math.log10(50), x1 = Math.log10(50000), nb = 36, cnt = new Array(nb).fill(0);
+  for (const v of vals) { const b = Math.floor((Math.log10(Math.max(v, 50)) - x0) / (x1 - x0) * nb); cnt[Math.min(Math.max(b, 0), nb - 1)]++; }
+  const mx = Math.max(1, ...cnt), bw = W / nb, X = v => (Math.log10(Math.max(v, 50)) - x0) / (x1 - x0) * W;
+  let s = `<svg viewBox="0 0 ${W} ${Hh + 14}" data-pick="1">`;
+  cnt.forEach((c, i) => { const h = c / mx * Hh; s += `<rect x="${i * bw + 0.5}" y="${Hh - h}" width="${bw - 1.5}" height="${h}" rx="1.5" fill="#b9c7d8"/>`; });
+  if (corte > 0) s += `<line x1="${X(corte)}" x2="${X(corte)}" y1="0" y2="${Hh}" stroke="${color}" stroke-width="2"/>`;
+  for (const v of [100, 1000, 10000]) s += `<text x="${X(v)}" y="${Hh + 11}" text-anchor="middle">${v >= 1000 ? v / 1000 + "k" : v}</text>`;
+  return { html: `<div class="t">${etq}</div>` + s + "</svg>", pick: ev => {
+    const sv = ev.currentTarget, bb = sv.getBoundingClientRect(), xv = (ev.clientX - bb.left) / bb.width * W;
+    const val = Math.pow(10, x0 + xv / W * (x1 - x0)), below = vals.filter(v => v < val).length;
+    onPick(Math.min(95, Math.max(0, Math.round(100 * below / Math.max(vals.length, 1) / 5) * 5)));
+  } };
+}
+function lineas(slug) {
+  // lo construido por anio, antes y despues de las reglas
+  const v0 = [], v1 = [];
+  for (const a of ANIOS) { const R = calc(slug, a); v0.push(R.built0); v1.push(R.built1); }
+  const W = 340, Hh = 70, mx = Math.max(...v0, ...v1) * 1.08, X = i => 20 + i * (W - 40) / 3, Y = v => Hh - v / mx * Hh;
+  const pl = (v, c, d) => `<polyline points="${v.map((y, i) => X(i) + "," + Y(y)).join(" ")}" fill="none" stroke="${c}" stroke-width="2" ${d ? 'stroke-dasharray="4 3"' : ""}/>`
+    + v.map((y, i) => `<circle cx="${X(i)}" cy="${Y(y)}" r="${ANIOS[i] === st.anio ? 4 : 2.5}" fill="${c}"/>`).join("");
+  let s = `<svg viewBox="0 0 ${W} ${Hh + 14}">` + pl(v0, "#9aa5b1", true) + pl(v1, "#1f4e79", false);
+  ANIOS.forEach((a, i) => s += `<text x="${X(i)}" y="${Hh + 11}" text-anchor="middle">${a}</text>`);
+  return { html: `<div class="t">Built-up km² by year: <span style="color:#1f4e79">● with the rules</span> · <span style="color:#7b8794">--- GISD30 as is</span>` +
+    ` · growth ${fmt1(tasa(v0[0], v0[3]))} → ${fmt1(tasa(v1[0], v1[3]))} %/yr</div>` + s + "</svg>" };
+}
+function tarjetas() {
+  let h = ""; const picks = [];
+  st.ciudades.forEach((slug, q) => {
+    const R = M[q].R, c = ciudad(slug);
+    if (!R) return;
+    const h1 = histo(R.du, R.d2, "#1f4e79", `Tract density, persons / km² urbanized · rule 2 cut p${st.p2} = ${fmt0(R.d2)}`, p => { st.p2 = p; $("p2").value = p; todo(false); });
+    const h2 = histo(R.db, st.r3 && st.p3 > 0 ? R.d3 : 0, "#f08a24", `Persons / km² built-up · rule 3 floor p${st.p3} = ${fmt0(R.d3)}`, p => { st.p3 = p; $("p3").value = p; todo(false); });
+    picks.push(h1.pick, h2.pick);
+    const dens0 = R.pop / R.built0, dens1 = R.pop / R.built1;
+    h += `<div class="tarjeta"><h2>${c.nombre}<small>${st.anio} · census ${CENSO[st.anio]}</small></h2>
+      <table class="n">
+        <tr><td>Built-up, GISD30</td><td>${fmt1(R.built0)} km²</td></tr>
+        <tr><td>+ holes filled (rule 2)</td><td class="mas">+${fmt1(R.fill)}</td></tr>
+        <tr><td>− trimmed (rule 3)</td><td class="menos">−${fmt1(R.drop)}</td></tr>
+        <tr class="tot"><td>Built-up with the rules</td><td>${fmt1(R.built1)} km²</td></tr>
+        <tr><td>Open: edge ring · inside, kept</td><td>${fmt1(R.ring)} · ${fmt1(R.open)} km²</td></tr>
+        <tr><td>Persons per km² built</td><td>${fmt0(dens0)} → ${fmt0(dens1)}</td></tr>
+        <tr><td>Persons in its tracts</td><td>${fmt0(R.pop)}</td></tr>
+      </table>
+      <div class="graf">${h1.html}${h2.html}${lineas(slug).html}</div></div>`;
+  });
+  $("tarjetas").innerHTML = h;
+  $("tarjetas").querySelectorAll("svg[data-pick]").forEach((sv, i) => sv.onclick = picks[i]);
+}
+
+function leyenda() {
+  let h = "";
+  for (const [k, v] of Object.entries(CLASES))
+    h += `<li><label><input type="checkbox" data-k="${k}" ${st.ocultas.has(k) ? "" : "checked"}><i style="background:${v.c}"></i>${v.t}</label></li>`;
+  h += `<li><label><i style="background:${MB_COL};opacity:.7"></i>MapBiomas urban (when on)</label></li>`;
+  $("leyenda").innerHTML = h;
+  $("leyenda").querySelectorAll("input[data-k]").forEach(x => x.onchange = () => {
+    if (x.checked) st.ocultas.delete(x.dataset.k); else st.ocultas.add(x.dataset.k);
+    M.forEach((m, q) => pintar(q));
+  });
+}
+
+let pedido = null;
+function todo(cambioAnio) {
+  // cambia una regla o el anio: recalcula y repinta las cuatro
+  if (pedido) return;
+  pedido = requestAnimationFrame(async () => {
+    pedido = null;
+    for (let q = 0; q < 4; q++) {
+      const m = M[q], slug = st.ciudades[q];
+      if (!DAT[slug + st.anio]) continue;
+      m.R = calc(slug, st.anio);
+      if (cambioAnio) fondo(q);
+      pintar(q); await pintarMB(q);
+    }
+    tarjetas(); guardarHash();
+  });
+}
+
+function guardarHash() {
+  history.replaceState(null, "", `#c=${st.ciudades.join(",")}&y=${st.anio}&d=${st.D}&t=${st.tam}&g=${st.gap}&p2=${st.p2}&r3=${st.r3 ? 1 : 0}&p3=${st.p3}&s=${st.S}&f=${st.fondo}&mb=${st.mb ? 1 : 0}`);
+}
+function leerHash() {
+  const h = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
+  if (h.c) { const c = h.c.split(",").filter(s => ciudad(s)); if (c.length === 4) st.ciudades = c; }
+  if (ANIOS.includes(+h.y)) st.anio = +h.y;
+  if ([100, 200, 400].includes(+h.d)) st.D = +h.d;
+  if (h.t !== undefined && +h.t >= 0 && +h.t <= 5) st.tam = +h.t;
+  if ([0, 1, 2, 3].includes(+h.g)) st.gap = +h.g;
+  if (PCTS.includes(+h.p2)) st.p2 = +h.p2;
+  if (h.r3) st.r3 = h.r3 === "1";
+  if (PCTS.includes(+h.p3)) st.p3 = +h.p3;
+  if ([60, 70, 80, 90, 101].includes(+h.s)) st.S = +h.s;
+  if (["landsat", "esri", "osm", "carto"].includes(h.f)) st.fondo = h.f;
+  if (h.mb) st.mb = h.mb === "1";
+}
+
+async function iniciar() {
+  try { INDICE = await json(DATOS + "indice.json"); }
+  catch (e) { $("cargando").style.display = "block"; $("cargando").textContent = "Serve this folder over http to read datos/indice.json."; return; }
+  INDICE.ciudades = INDICE.ciudades.filter(c => c.parches && c.parches.length === 4);
+  st.ciudades = st.ciudades.map((s, i) => ciudad(s) ? s : INDICE.ciudades[i].slug);
+  leerHash();
+  const ops = INDICE.ciudades.map(c => `<option value="${c.slug}">${c.nombre}</option>`).join("");
+  M.forEach((m, q) => { m.sel.innerHTML = ops; m.sel.value = st.ciudades[q]; });
+  $("anio").innerHTML = ANIOS.map(a => `<option value="${a}">${a} · census ${CENSO[a]}</option>`).join("");
+  const pcts = PCTS.map(p => `<option value="${p}">${p === 0 ? "all tracts" : "p" + p}</option>`).join("");
+  $("p2").innerHTML = pcts; $("p3").innerHTML = pcts.replace("all tracts", "off");
+  $("anio").value = st.anio; $("D").value = st.D; $("tam").value = st.tam; $("gap").value = st.gap; $("p2").value = st.p2;
+  $("r3").checked = st.r3; $("p3").value = st.p3; $("S").value = st.S; $("fondo").value = st.fondo; $("mb").checked = st.mb;
+  $("anio").onchange = e => { st.anio = +e.target.value; todo(true); };
+  $("D").onchange = e => { st.D = +e.target.value; todo(false); };
+  $("tam").onchange = e => { st.tam = +e.target.value; todo(false); };
+  $("gap").onchange = e => { st.gap = +e.target.value; todo(false); };
+  $("p2").onchange = e => { st.p2 = +e.target.value; todo(false); };
+  $("r3").onchange = e => { st.r3 = e.target.checked; todo(false); };
+  $("p3").onchange = e => { st.p3 = +e.target.value; todo(false); };
+  $("S").onchange = e => { st.S = +e.target.value; todo(false); };
+  $("fondo").onchange = e => { st.fondo = e.target.value; M.forEach((m, q) => fondo(q)); guardarHash(); };
+  $("opac").oninput = e => { st.opac = 1 - e.target.value / 100; M.forEach(m => m.clase && m.clase.setOpacity(st.opac)); };
+  $("mb").onchange = e => { st.mb = e.target.checked; todo(false); };
+  $("mbopac").oninput = e => { st.mbOpac = 1 - e.target.value / 100; M.forEach(m => m.mbl && m.mbl.setOpacity(st.mbOpac)); };
+  leyenda();
+  for (let q = 0; q < 4; q++) await cargarMapa(q, true);
+}
+iniciar();
+</script>
+</body>
+</html>

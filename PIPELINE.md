@@ -50,6 +50,7 @@ with `fetch`, so locally it needs a server, not a double click:
 | 14 | `scripts/14_prueba_comparada.R` | tests 1 and 2 side by side (`pruebas/comparacion/`) | no |
 | 16 | `scripts/16_reglas.R` | test 3 and the fill rule (`pruebas/reglas/`, `outputs/reglas/`) | no |
 | 17 | `scripts/17_mapbiomas.R` | MapBiomas 2020 against the city and the tests (`pruebas/mapbiomas/`) | no |
+| 18 | `scripts/18_parches.R` | Patch size of the interior open land, for the four-city viewer (`docs/visor/cuatro.html`) | no |
 | 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11, 16, 17 and 02 | yes, in `docs/` |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 
