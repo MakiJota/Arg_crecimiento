@@ -185,7 +185,7 @@ body.modo-reglas .solo-tests { display: none; }
         <p class="ayuda" style="margin-top:-4px">Open land this close to the city edge stays fringe and is never filled.</p></div>
       <div class="regla"><h4><b>2</b>Fill open land inside</h4>
         <div id="rc-2"></div>
-        <p class="ayuda" style="margin-top:-4px">Interior open land beyond the ring, grouped in patches (pixels touching by a side). Small patches and narrow gaps in dense tracts become built-up; large patches (parks, vacant land) and water stay open.</p></div>
+        <p class="ayuda" style="margin-top:-4px">Interior open land beyond the ring, grouped in patches (pixels touching by a side). Small patches and narrow gaps in dense tracts become built-up; large patches (parks, vacant land) and water stay open. In the densest tracts (last slider) all open land inside becomes built-up, whatever its size; only water and the edge ring stay open.</p></div>
       <div class="regla"><h4><b>3</b>Trim built-up</h4>
         <div class="seg" id="r-modo">
           <button data-v="no">Off</button><button data-v="piso">Percentile floor</button><button data-v="tope">Dwelling cap</button>
@@ -616,6 +616,7 @@ const RV = {         // valores de cada deslizador
   tam: [0, 1, 2, 3, 4, 5],
   gap: [0, 1, 2, 3],
   p2b: [101, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
+  p2t: [101, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
   tamb: [1, 2, 3, 4, 5, 6],
   p3: PCTS.slice(1, 11),
   k: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4],
@@ -628,6 +629,7 @@ const RT = {
   tam: v => TAM_T[v],
   gap: v => v === 0 ? "none" : `≤ ${30 * v} m`,
   p2b: v => v > 100 ? "off" : `percentile ${v}`,
+  p2t: v => v > 100 ? "off" : `percentile ${v}`,
   tamb: v => TAM_T[v],
   p3: v => `percentile ${v}`,
   k: v => `${v} px = ${fmt0(v * PX_M2)} m²`,
@@ -636,10 +638,11 @@ const RT = {
 const RL = {
   D: "Ring width", p2: "Fill in tracts from", tam: "Patches up to", gap: "Also narrow gaps",
   p2b: "Bigger patches in tracts from", tamb: "Patches there up to",
+  p2t: "ALL open land inside, in tracts from",
   p3: "Floor: persons / km² built below", k: "Cap per dwelling", S: "Never trim pixels with",
 };
-const RG = { 1: ["D"], 2: ["p2", "tam", "gap", "p2b", "tamb"], 3: ["p3", "k", "S"] };
-st.r = { D: 200, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, modo: "tope", p3: 10, k: 1, S: 80, fuera: true };
+const RG = { 1: ["D"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3", "k", "S"] };
+st.r = { D: 200, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, modo: "tope", p3: 10, k: 1, S: 80, fuera: true };
 let mPrevio = "t1";
 const RDAT = {};
 
@@ -711,6 +714,7 @@ function rcalc(slug, anio) {
     }
   }
   const d2 = st.r.p2 === 0 ? 0 : percentilV(du, st.r.p2), dHi = st.r.p2b > 100 ? Infinity : percentilV(du, st.r.p2b);
+  const dTot = st.r.p2t > 100 ? Infinity : percentilV(du, st.r.p2t);
   const d3 = percentilV(db, st.r.p3);
   const lim = new Uint8Array(nr), gok = new Uint8Array(nr), t = new Int16Array(nr).fill(-1);
   const fillR = new Float64Array(nr), dropR = new Float64Array(nr), dropO = new Float64Array(nr);
@@ -721,8 +725,10 @@ function rcalc(slug, anio) {
     if (u > 0) {
       pop += Y.personas[j]; built += Y.construido[j];
       const d = Y.dens[j];
-      lim[r] = d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
-      gok[r] = d >= 0 && d >= d2 ? 1 : 0;
+      // en los radios mas densos (>= dTot) todo el abierto interior se rellena, de cualquier tamano
+      // (clase 6); el agua y su orilla (clase 7) y la franja del borde quedan abiertas igual
+      lim[r] = d >= 0 && d >= dTot ? 6 : d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
+      gok[r] = d >= 0 && (d >= d2 || d >= dTot) ? 1 : 0;
       for (let g = 0; g < 4; g++) ring += H[r * 32 + g] * f;
       for (let c = 1; c <= 7; c++) for (let g = 0; g < 4; g++) {
         const km = H[r * 32 + c * 4 + g] * f;
@@ -748,7 +754,7 @@ function rcalc(slug, anio) {
       }
     }
   }
-  return RCALC[key] = { d2, dHi, d3, lim, gok, t, fillR, dropR, dropO, f, built0: built, fill, drop, dropOut,
+  return RCALC[key] = { d2, dHi, dTot, d3, lim, gok, t, fillR, dropR, dropO, f, built0: built, fill, drop, dropOut,
                         built1: built + fill - drop, ring, open, pop, nF, nT, du, db };
 }
 function claseRegla(X, R, i, rid, C) {
@@ -888,7 +894,7 @@ function panelReglas() {
   } else { $("g3-tit").textContent = "Rule 3 is off"; $("g3-sub").textContent = ""; $("g3").innerHTML = ""; }
   $("g4-tit").textContent = "Density of the census tracts (rule 2)";
   histograma($("g4"));
-  $("g4-sub").textContent += ` Rule 2 fills only in tracts at or right of the orange line${st.r.p2b <= 100 ? `; bigger patches from percentile ${st.r.p2b} (${fmt0(C.dHi)} p/km²)` : ""}.`;
+  $("g4-sub").textContent += ` Rule 2 fills only in tracts at or right of the orange line${st.r.p2b <= 100 ? `; bigger patches from percentile ${st.r.p2b} (${fmt0(C.dHi)} p/km²)` : ""}${st.r.p2t <= 100 ? `; all open land inside from percentile ${st.r.p2t} (${fmt0(C.dTot)} p/km²)` : ""}.`;
   $("der-pie").textContent = "Click or drag the histograms to move the thresholds. Exploratory: none of these numbers are project figures.";
 }
 
@@ -1502,7 +1508,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0].join(",");
+  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t].join(",");
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
@@ -1523,7 +1529,7 @@ function leerHash() {
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
   if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera"];
+    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t"];
     cl.forEach((c, i) => {
       if (v[i] === undefined) return;
       if (c === "modo") { if (["no", "piso", "tope"].includes(v[i])) st.r.modo = v[i]; }
