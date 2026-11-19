@@ -93,10 +93,29 @@ td a:hover { text-decoration: underline; }
 .controles-res > div { min-width: 200px; }
 .neg { color: var(--warn); }
 footer { font-size: 11.5px; color: var(--ink3); padding: 6px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-.cargando { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-size: 13px; z-index: 900; display: none; }
+.cargando { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.15); font-size: 13px; z-index: 900; display: none; }
 .leaflet-popup-content { font-size: 12.5px; line-height: 1.5; }
 .pixelado { image-rendering: pixelated; image-rendering: crisp-edges; }
 .solo-reglas { display: none; }
+#mapa { position: relative; }
+.flota { position: absolute; top: 10px; left: 58px; right: 10px; z-index: 1000; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: flex-end;
+  background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); padding: 7px 40px 8px 12px; }
+.flota .f-it { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.flota .f-it > span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink2); font-weight: 600; }
+.flota select { width: auto; max-width: 210px; font-size: 13px; padding: 4px 6px; }
+.flota input[type=range] { width: 120px; margin: 6px 0 2px; }
+.flota .f-fila { display: flex; gap: 8px; align-items: center; }
+.flota .f-chk { display: flex; gap: 5px; align-items: center; cursor: pointer; font: inherit; }
+.flota .f-chk input { margin: 0; accent-color: #d4271e; }
+.f-anios { display: flex; border: 1px solid #cfcdc6; border-radius: 6px; overflow: hidden; }
+.f-anios button { font: inherit; font-size: 13px; padding: 4px 9px; border: 0; border-left: 1px solid #e6e5df; background: #fff; cursor: pointer; color: var(--ink2); }
+.f-anios button:first-child { border-left: 0; }
+.f-anios button.on { background: var(--accent); color: #fff; }
+.f-min { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: 1px solid #cfcdc6; border-radius: 6px; background: #fff; cursor: pointer; font-size: 16px; line-height: 1; color: var(--ink2); }
+.flota.min .f-mas { display: none; }
+.regla h4 label { display: flex; align-items: center; gap: 0; cursor: pointer; margin: 0; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--head); font-weight: 650; }
+.regla h4 input { margin: 0 8px 0 0; accent-color: var(--accent); }
+.regla.off > :not(h4) { opacity: .35; pointer-events: none; }
 body.modo-reglas .solo-reglas { display: block; }
 body.modo-reglas .solo-tests { display: none; }
 .regla { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 4px; margin-bottom: 10px; background: var(--bg); }
@@ -107,7 +126,7 @@ body.modo-reglas .solo-tests { display: none; }
 .desliz .arriba { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink2); margin-bottom: 2px; }
 .desliz .arriba b { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .desliz .marcas { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink3); margin-top: -2px; }
-.regla .seg { grid-template-columns: repeat(3, 1fr); margin-bottom: 6px; }
+.regla .seg { grid-template-columns: repeat(2, 1fr); margin-bottom: 6px; }
 
 @media (max-width: 1100px) {
   main { grid-template-columns: 240px 1fr; }
@@ -144,22 +163,14 @@ body.modo-reglas .solo-tests { display: none; }
       </div>
       <p class="ayuda" id="metodo-ayuda"></p>
     </div>
-    <div class="paso">
-      <label for="ciudad"><b>2</b>Agglomeration</label>
-      <select id="ciudad"></select>
-      <p class="ayuda" id="aviso" style="color:var(--warn)"></p>
-    </div>
-    <div class="paso">
-      <label for="anio"><b>3</b>Year</label>
-      <select id="anio"></select>
-    </div>
+    <p class="ayuda" id="aviso" style="color:var(--warn);margin:0 0 12px"></p>
     <div class="paso solo-tests">
-      <label for="corte" id="corte-rot"><b>4</b>Density threshold</label>
+      <label for="corte" id="corte-rot"><b>2</b>Density threshold</label>
       <select id="corte"></select>
       <p class="ayuda" id="corte-ayuda">Persons per km² of urbanized land (built + fringe + captured) in the census tract.</p>
     </div>
     <div class="paso solo-tests">
-      <label for="relleno"><b>5</b>Fill the centre</label>
+      <label for="relleno"><b>3</b>Fill the centre</label>
       <select id="relleno">
         <option value="no">No fill</option>
         <option value="h30">Gaps up to 30 m</option>
@@ -180,50 +191,21 @@ body.modo-reglas .solo-tests { display: none; }
     </div>
     <div class="paso solo-reglas" id="reglas-izq">
       <span class="rotulo">Rules on the Angel classes</span>
-      <div class="regla"><h4><b>1</b>Edge ring</h4>
+      <div class="regla" id="rb-1"><h4><label><input type="checkbox" id="on1"><b>1</b>Edge ring</label></h4>
         <div id="rc-1"></div>
-        <p class="ayuda" style="margin-top:-4px">Open land this close to the city edge stays fringe and is never filled.</p></div>
-      <div class="regla"><h4><b>2</b>Fill open land inside</h4>
+        <p class="ayuda" style="margin-top:-4px">Open land this close to the city edge stays fringe and is never filled. Off: it is treated like open land inside, but it can only be filled as a narrow gap (rule 2), because the patch sizes are measured beyond the ring.</p></div>
+      <div class="regla" id="rb-2"><h4><label><input type="checkbox" id="on2"><b>2</b>Fill open land inside</label></h4>
         <div id="rc-2"></div>
         <p class="ayuda" style="margin-top:-4px">Interior open land beyond the ring, grouped in patches (pixels touching by a side). Small patches and narrow gaps in dense tracts become built-up; large patches (parks, vacant land) and water stay open. In the densest tracts (last slider) all open land inside becomes built-up, whatever its size; only water and the edge ring stay open.</p></div>
-      <div class="regla"><h4><b>3</b>Trim built-up</h4>
+      <div class="regla" id="rb-3"><h4><label><input type="checkbox" id="on3"><b>3</b>Trim built-up</label></h4>
         <div class="seg" id="r-modo">
-          <button data-v="no">Off</button><button data-v="piso">Percentile floor</button><button data-v="tope">Dwelling cap</button>
+          <button data-v="piso">Percentile floor</button><button data-v="tope">Dwelling cap</button>
         </div>
         <div id="rc-3"></div>
         <p class="ayuda" id="r3-ayuda" style="margin-top:-4px"></p></div>
     </div>
     <div class="paso">
-      <label for="capa">Show on the map</label>
-      <select id="capa">
-        <option value="res">Result of the method</option>
-        <option value="lim">Result + census tract limits</option>
-        <option value="dens">Census tracts by density</option>
-      </select>
-    </div>
-    <div class="paso">
-      <label>MapBiomas</label>
-      <label class="chk"><input type="checkbox" id="mb-on"> show MapBiomas urban on top</label>
-      <select id="mb-estilo">
-        <option value="relleno">filled red</option>
-        <option value="borde">red outline</option>
-      </select>
-      <label for="mb-opac" style="margin-top:8px">Transparency of MapBiomas</label>
-      <input type="range" id="mb-opac" min="0" max="100" value="30">
       <p class="ayuda" id="mb-nota"></p>
-    </div>
-    <div class="paso">
-      <label for="opacidad">Transparency of the result</label>
-      <input type="range" id="opacidad" min="0" max="100" value="15">
-    </div>
-    <div class="paso">
-      <label for="fondo">Background</label>
-      <select id="fondo">
-        <option value="landsat">Landsat of the selected year</option>
-        <option value="esri">Present-day imagery (Esri)</option>
-        <option value="osm">Streets (OpenStreetMap)</option>
-        <option value="carto">Light map</option>
-      </select>
       <p class="ayuda" id="fondo-nota"></p>
     </div>
     <div class="paso">
@@ -233,7 +215,28 @@ body.modo-reglas .solo-tests { display: none; }
     <p class="ayuda">Click on the map to see the census tract under the pointer.</p>
   </aside>
 
-  <div id="mapa"><div class="cargando" id="cargando">Loading…</div></div>
+  <div id="mapa"><div class="cargando" id="cargando">Loading…</div>
+    <div class="flota" id="flota">
+      <div class="f-it"><span>Agglomeration</span><select id="ciudad"></select></div>
+      <div class="f-it"><span>Year</span><div class="f-anios" id="f-anios"></div><select id="anio" hidden></select></div>
+      <div class="f-it f-mas"><span>Show</span><select id="capa">
+        <option value="res">Result</option>
+        <option value="lim">Result + tract limits</option>
+        <option value="dens">Tracts by density</option>
+      </select></div>
+      <div class="f-it f-mas"><span>Background</span><select id="fondo">
+        <option value="landsat">Landsat of the year</option>
+        <option value="esri">Imagery today (Esri)</option>
+        <option value="osm">Streets (OSM)</option>
+        <option value="carto">Light map</option>
+      </select></div>
+      <div class="f-it f-mas"><span>Result transparency</span><input type="range" id="opacidad" min="0" max="100" value="15"></div>
+      <div class="f-it f-mas"><span><label class="f-chk"><input type="checkbox" id="mb-on"> MapBiomas</label></span>
+        <div class="f-fila"><select id="mb-estilo"><option value="relleno">filled</option><option value="borde">outline</option></select>
+        <input type="range" id="mb-opac" min="0" max="100" value="30" title="Transparency of MapBiomas"></div></div>
+      <button class="f-min" id="f-min" title="Hide or show the map controls">–</button>
+    </div>
+  </div>
 
   <aside id="der">
     <span class="rotulo" id="der-titulo">Selection</span>
@@ -642,8 +645,9 @@ const RL = {
   p3: "Floor: persons / km² built below", k: "Cap per dwelling", S: "Never trim pixels with",
 };
 const RG = { 1: ["D"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3", "k", "S"] };
-st.r = { D: 200, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, modo: "tope", p3: 10, k: 1, S: 80, fuera: true };
+st.r = { D: 200, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, on1: true, on2: true, on3: true, modo: "tope", p3: 10, k: 1, S: 80, fuera: true };
 let mPrevio = "t1";
+const modo3 = () => st.r.on3 ? st.r.modo : "no";
 const RDAT = {};
 
 async function rgbPng(url) {
@@ -727,9 +731,12 @@ function rcalc(slug, anio) {
       const d = Y.dens[j];
       // en los radios mas densos (>= dTot) todo el abierto interior se rellena, de cualquier tamano
       // (clase 6); el agua y su orilla (clase 7) y la franja del borde quedan abiertas igual
-      lim[r] = d >= 0 && d >= dTot ? 6 : d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
-      gok[r] = d >= 0 && (d >= d2 || d >= dTot) ? 1 : 0;
-      for (let g = 0; g < 4; g++) ring += H[r * 32 + g] * f;
+      lim[r] = !st.r.on2 ? 0 : d >= 0 && d >= dTot ? 6 : d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
+      gok[r] = st.r.on2 && d >= 0 && (d >= d2 || d >= dTot) ? 1 : 0;
+      for (let g = 0; g < 4; g++) {
+        const km = H[r * 32 + g] * f;
+        if (!st.r.on1 && gok[r] && st.r.gap > 0 && g >= 1 && g <= st.r.gap) fillR[r] += km; else ring += km;
+      }
       for (let c = 1; c <= 7; c++) for (let g = 0; g < 4; g++) {
         const km = H[r * 32 + c * 4 + g] * f;
         if (llenaR(c, g, lim[r], gok[r])) fillR[r] += km; else open += km;
@@ -738,9 +745,9 @@ function rcalc(slug, anio) {
     }
     // regla 3
     let keep = -1, H2 = null;
-    if (st.r.modo === "piso" && u > 0 && Y.construido[j] > 0 && Y.personas[j] / Y.construido[j] < d3 && f > 0)
+    if (modo3() === "piso" && u > 0 && Y.construido[j] > 0 && Y.personas[j] / Y.construido[j] < d3 && f > 0)
       keep = Y.personas[j] / d3 / f;
-    else if (st.r.modo === "tope" && viv[j] >= 0 && f > 0) {
+    else if (modo3() === "tope" && viv[j] >= 0 && f > 0) {
       keep = viv[j] * st.r.k * PX_M2 / 1e6 / f;
       if (st.r.fuera) H2 = X.hs3;
     }
@@ -762,9 +769,9 @@ function claseRegla(X, R, i, rid, C) {
   if (c === 0) return null;
   const r = rid[i];
   if (c === 1) return C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "rb";
-  if (c === 3) return st.r.modo === "tope" && st.r.fuera && C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "ru";
+  if (c === 3) return modo3() === "tope" && st.r.fuera && C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "ru";
   const p = parcheDe(X, i);
-  if (p === 0) return "rr";
+  if (p === 0) { const g = (R >> 4) & 3; return !st.r.on1 && C.gok[r] && st.r.gap > 0 && g >= 1 && g <= st.r.gap ? "rf" : "rr"; }
   return llenaR(p, (R >> 4) & 3, C.lim[r], C.gok[r]) ? "rf" : "ro";
 }
 
@@ -785,6 +792,7 @@ function armarReglas() {
     pedirRapido();
   };
   $("r-fuera").onchange = e => { st.r.fuera = e.target.checked; rapido(); };
+  for (const n of [1, 2, 3]) $("on" + n).onchange = e => { st.r["on" + n] = e.target.checked; rapido(); };
   document.querySelectorAll("#r-modo button").forEach(b => b.onclick = () => { st.r.modo = b.dataset.v; rapido(); });
 }
 function ponerReglasIzq() {
@@ -795,13 +803,14 @@ function ponerReglasIzq() {
   document.querySelectorAll("#r-modo button").forEach(b => b.classList.toggle("on", b.dataset.v === st.r.modo));
   $("dz-p3").style.display = st.r.modo === "piso" ? "" : "none";
   $("dz-k").style.display = st.r.modo === "tope" ? "" : "none";
-  $("dz-S").style.display = st.r.modo === "no" ? "none" : "";
+  $("dz-S").style.display = modo3() === "no" ? "none" : "";
   $("r-fuera-l").style.display = st.r.modo === "tope" ? "" : "none";
   $("r-fuera").checked = st.r.fuera;
+  for (const n of [1, 2, 3]) { $("on" + n).checked = st.r["on" + n]; $("rb-" + n).classList.toggle("off", !st.r["on" + n]); }
   $("dz-tamb").classList.toggle("apagado", st.r.p2b > 100);
   const C = st.slug && RDAT[st.slug + st.anio] ? rcalc(st.slug, st.anio) : null;
-  $("r3-ayuda").textContent = st.r.modo === "no" ? "No trimming."
-    : st.r.modo === "piso" ? `Tracts with fewer persons per km² built than the city's percentile ${st.r.p3}${C ? ` (${fmt0(C.d3)} in ${st.anio})` : ""} keep only persons ÷ that floor km² of built-up: the pixels with the most built-up around them first.`
+  $("r3-ayuda").textContent = modo3() === "no" ? "No trimming."
+    : modo3() === "piso" ? `Tracts with fewer persons per km² built than the city's percentile ${st.r.p3}${C ? ` (${fmt0(C.d3)} in ${st.anio})` : ""} keep only persons ÷ that floor km² of built-up: the pixels with the most built-up around them first.`
     : `Each tract keeps at most dwellings × ${st.r.k} pixel${st.r.k === 1 ? "" : "s"} (${fmt0(st.r.k * PX_M2)} m² per dwelling, lot and street included) of built-up, the most solid pixels first. Dense tracts never reach the cap; it bites only where there are few dwellings. Dwellings: census ${CENSO[st.anio]}, all of them, occupied or not.`;
 }
 
@@ -861,7 +870,7 @@ function panelReglas() {
   let h = cifra("GISD30 built-up", fmt1(C.built0) + " km²", fmt0(C.pop) + " persons in the city's tracts");
   h += cifra("Built-up with the rules", fmt1(C.built1) + " km²", `${C.built1 >= C.built0 ? "+" : "−"}${fmt1(Math.abs(C.built1 - C.built0))} km² · ${fmt1(100 * (C.built1 / C.built0 - 1))} %`);
   h += cifra("Filled (rule 2)", "+" + fmt1(C.fill) + " km²", `${fmt0(C.nF)} tracts · ${fmt1(C.fill + C.open > 0 ? 100 * C.fill / (C.fill + C.open) : 0)} % of the interior open land`);
-  h += cifra("Trimmed (rule 3)", "−" + fmt1(C.drop) + " km²", `${fmt0(C.nT)} tracts` + (st.r.modo === "tope" && st.r.fuera ? ` · plus ${fmt1(C.dropOut)} km² outside the city` : ""));
+  h += cifra("Trimmed (rule 3)", "−" + fmt1(C.drop) + " km²", `${fmt0(C.nT)} tracts` + (modo3() === "tope" && st.r.fuera ? ` · plus ${fmt1(C.dropOut)} km² outside the city` : ""));
   h += cifra("Persons per km² built", fmt0(C.pop / C.built1), `GISD30: ${fmt0(C.pop / C.built0)}`);
   h += cifra("Growth 1990–2020", fmt2(t1) + " %/yr", `GISD30: ${fmt2(t0)} %/yr`);
   $("cifras").innerHTML = h;
@@ -877,7 +886,7 @@ function panelReglas() {
     { n: "filled (rule 2)", c: RC.rf.c, v: S.map(x => x.fill), w: 2.4 },
     { n: "trimmed (rule 3)", c: RC.rx.c, v: S.map(x => x.drop), w: 2.4 } ] });
   const Y = RADIOS[st.slug][a];
-  if (st.r.modo === "tope") {
+  if (modo3() === "tope") {
     const v = [];
     for (let j = 0; j < Y.cod.length; j++) if (Y.viv && Y.viv[j] > 0 && Y.construido[j] > 0) v.push(Y.construido[j] * 1e6 / Y.viv[j]);
     $("g3-tit").textContent = "City built-up per dwelling, by tract";
@@ -885,7 +894,7 @@ function panelReglas() {
     histoLog($("g3"), v, st.r.k * PX_M2, { color: RC.rx.c, fmtX: kfmt, derecha: true,
       elegir: x => fijarRegla("k", cercano(RV.k, x / PX_M2)),
       tipX: (x, n, N) => `${fmt0(x)} m² per dwelling = ${fmt2(x / PX_M2)} px · ${fmt0(N - n)} tracts (${fmt0(100 * (N - n) / Math.max(1, N))} %) above` });
-  } else if (st.r.modo === "piso") {
+  } else if (modo3() === "piso") {
     $("g3-tit").textContent = "Persons per km² built, by tract";
     $("g3-sub").textContent = `Tracts with at least 10 % of their area in the city, log scale. Orange line: the floor, percentile ${st.r.p3} = ${fmt0(C.d3)}; tracts to its left are trimmed. Click or drag to move it.`;
     histoLog($("g3"), C.db, C.d3, { color: RC.rx.c, fmtX: kfmt,
@@ -1153,6 +1162,7 @@ async function rapido() {
     : st.capa !== "mb" ? "" : !tieneMB() ? "No MapBiomas comparison for this agglomeration."
     : "MapBiomas Argentina collection 2, 2020 (Source Cooperative copy), against the GISD30 city of 2020. Only 2020: the year is fixed.";
   if (st.m === "reg") ponerReglasIzq();
+  $("f-anios").querySelectorAll("button").forEach(b => b.classList.toggle("on", Number(b.dataset.a) === st.anio));
   ayudaCorte(); leyenda(); panelDerecho(); guardarHash();
 }
 let pedido = null;
@@ -1196,12 +1206,12 @@ map.on("click", e => {
 // ---------- panel izquierdo ----------
 function ayudaCorte() {
   if (st.m === "t3") {
-    $("corte-rot").innerHTML = "<b>4</b>Percentile of the city's tract density";
+    $("corte-rot").innerHTML = "<b>2</b>Percentile of the city's tract density";
     const k = corteActual();
     $("corte-ayuda").textContent = st.pct === 0 ? "No cut: the Angel extent." : !isFinite(st.pct) ? "Built-up only."
       : `In ${st.anio} (census ${CENSO[st.anio]}) this is ${fmt0(k)} persons per km² urbanized. Fringe of tracts below it is left out.`;
   } else {
-    $("corte-rot").innerHTML = "<b>4</b>Density threshold";
+    $("corte-rot").innerHTML = "<b>2</b>Density threshold";
     $("corte-ayuda").textContent = "Persons per km² of urbanized land (built + fringe + captured) in the census tract.";
   }
 }
@@ -1227,8 +1237,8 @@ function leyenda() {
     h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
   } else if (st.m === "reg") {
     for (const [c, v] of Object.entries(RC)) {
-      if (c === "rx" && st.r.modo === "no") continue;
-      h += item(c, v.c, c === "rr" ? `edge ring: open land within ${st.r.D} m of the city edge (rule 1)` : v.t);
+      if (c === "rx" && modo3() === "no") continue;
+      h += item(c, v.c, c === "rr" ? (st.r.on1 ? `edge ring: open land within ${st.r.D} m of the city edge (rule 1)` : `open land within ${st.r.D} m of the edge, not a narrow gap (rule 1 off)`) : v.t);
     }
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   } else {
@@ -1508,7 +1518,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t].join(",");
+  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0].join(",");
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
@@ -1529,11 +1539,11 @@ function leerHash() {
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
   if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t"];
+    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3"];
     cl.forEach((c, i) => {
       if (v[i] === undefined) return;
-      if (c === "modo") { if (["no", "piso", "tope"].includes(v[i])) st.r.modo = v[i]; }
-      else if (c === "fuera") st.r.fuera = v[i] === "1";
+      if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope"].includes(v[i])) st.r.modo = v[i]; }
+      else if (["fuera", "on1", "on2", "on3"].includes(c)) st.r[c] = v[i] === "1";
       else if (RV[c].includes(Number(v[i]))) st.r[c] = Number(v[i]);
     });
   }
@@ -1553,6 +1563,13 @@ async function iniciar() {
   $("ciudad").value = st.slug;
   $("anio").innerHTML = ANIOS.map(a => `<option value="${a}">${a} · census ${CENSO[a]}</option>`).join("");
   $("anio").value = st.anio;
+  $("f-anios").innerHTML = ANIOS.map(a => `<button data-a="${a}" title="census ${CENSO[a]}">${a}</button>`).join("");
+  $("f-anios").querySelectorAll("button").forEach(b => b.onclick = () => {
+    if (Number(b.dataset.a) === st.anio) return;
+    $("anio").value = b.dataset.a; $("anio").onchange({ target: $("anio") });
+  });
+  L.DomEvent.disableClickPropagation($("flota")); L.DomEvent.disableScrollPropagation($("flota"));
+  $("f-min").onclick = () => { const m = $("flota").classList.toggle("min"); $("f-min").textContent = m ? "+" : "–"; };
   $("fondo").value = st.fondo;
   $("capa").value = st.capa;
   $("opacidad").value = Math.round(100 * (1 - st.opac));
