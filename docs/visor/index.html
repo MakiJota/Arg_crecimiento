@@ -199,7 +199,7 @@ body.modo-reglas .solo-tests { display: none; }
       <span class="rotulo">Rules on the Angel classes</span>
       <div class="regla" id="rb-1"><h4><label><input type="checkbox" id="on1"><b>1</b>Edge ring</label></h4>
         <div id="rc-1"></div>
-        <p class="ayuda" style="margin-top:-4px">Open land this close to the city edge stays fringe and is never filled. Off: it is treated like open land inside, but it can only be filled as a narrow gap (rule 2), because the patch sizes are measured beyond the ring.</p></div>
+        <p class="ayuda" style="margin-top:-4px">Open land this close to the city edge stays fringe and is never filled. The ring can also discount scattered built-up near the edge: pixels with little built-up around them. Off, or 0 m: no ring, all open land of the city is treated as inside.</p></div>
       <div class="regla" id="rb-2"><h4><label><input type="checkbox" id="on2"><b>2</b>Fill open land inside</label></h4>
         <div id="rc-2"></div>
         <p class="ayuda" style="margin-top:-4px">Interior open land beyond the ring, grouped in patches (pixels touching by a side). Small patches and narrow gaps in dense tracts become built-up; large patches (parks, vacant land) and water stay open. In the densest tracts (last slider) all open land inside becomes built-up, whatever its size; only water and the edge ring stay open.</p></div>
@@ -509,7 +509,7 @@ let INDICE = null;
 const RADIOS = {}, CLASE = {}, RELLENO = {}, PCT = {};
 
 // ---------- datos ----------
-async function json(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
+async function json(url, opc) { const r = await fetch(url, opc); if (!r.ok) throw new Error(url + " " + r.status); return r.json(); }
 async function radios(slug) {
   if (!RADIOS[slug]) RADIOS[slug] = await json(`${DATOS}${slug}/radios.json`);
   return RADIOS[slug];
@@ -609,50 +609,61 @@ function calc(slug, anio, k, F) {
 const valorM = (c, m) => m === "t1" ? c.t1 : c.t2;   // t2 y t3 tienen la misma forma
 
 // ---------- pestana Reglas: tres reglas sobre las clases de Angel (pasos 16, 18 y 19) ----------
-// R1 franja del borde de D m; R2 rellena parches interiores chicos y huecos angostos en radios
-// densos; R3 recorta construido con un piso de percentil o con un tope de viviendas x k pixeles.
+// R1 franja del borde de D m (0-500), que puede descontar construido ralo; R2 rellena parches
+// interiores chicos y huecos angostos (hasta 240 m) en radios densos; R3 recorta construido en los
+// radios ralos, con un piso de percentil o con un tope de viviendas x k pixeles.
 const RC = {
   rb: { c: "#1f4e79", t: "built-up (GISD30), kept" },
   rf: { c: "#2a9d8f", t: "open land filled as built-up (rule 2)" },
+  re: { c: "#e48fc0", t: "built-up discounted at the edge (rule 1)" },
   rx: { c: "#f08a24", t: "built-up trimmed (rule 3)" },
   rr: { c: "#9ecae1", t: "edge ring: open land kept as fringe (rule 1)" },
   ro: { c: "#c7a4dd", t: "open land inside, kept (large patch, sparse tract or water)" },
   ru: { c: "#f2c500", t: "built outside the city, kept" },
 };
 const PX_M2 = 900;   // un pixel de GISD30, 30 x 30 m
+const P5 = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
 const RV = {         // valores de cada deslizador
-  D: [100, 200, 400],
+  D: [0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500],
+  E: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 101],
   p2: PCTS,
-  tam: [0, 1, 2, 3, 4, 5],
-  gap: [0, 1, 2, 3],
-  p2b: [101, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
-  p2t: [101, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
-  tamb: [1, 2, 3, 4, 5, 6],
+  tam: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  gap: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  p2b: [101].concat(P5),
+  p2t: [101].concat(P5, [98, 100]),
+  tamb: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  p3t: PCTS.slice(1).concat([100]),
   p3: PCTS.slice(1, 11),
   k: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4],
   S: [101, 95, 90, 85, 80, 75, 70, 60],
 };
-const TAM_T = ["none", "≤ 0.5 ha", "≤ 1 ha", "≤ 2 ha", "≤ 5 ha", "≤ 20 ha", "any size"];
+// clases de parche del paso 18 (version 2): 1-9 por tamano, 9 = mas de 100 ha; 15 agua u orilla
+const TAM_T = ["none", "≤ 0.5 ha", "≤ 1 ha", "≤ 2 ha", "≤ 5 ha", "≤ 10 ha", "≤ 20 ha", "≤ 50 ha", "≤ 100 ha", "any size"];
+const GAP_M = [0, 30, 60, 90, 120, 150, 180, 210, 240, 300, 360, 420, 500];   // radio del cierre, por indice
 const RT = {
-  D: v => `${v} m`,
+  D: v => v === 0 ? "no ring" : `${v} m`,
+  E: v => v === 0 ? "off" : v > 100 ? "all of it" : `< ${v} % built around`,
   p2: v => v === 0 ? "all tracts" : `percentile ${v}`,
   tam: v => TAM_T[v],
-  gap: v => v === 0 ? "none" : `≤ ${30 * v} m`,
+  gap: v => v === 0 ? "none" : `≤ ${GAP_M[v]} m`,
   p2b: v => v > 100 ? "off" : `percentile ${v}`,
-  p2t: v => v > 100 ? "off" : `percentile ${v}`,
+  p2t: v => v > 100 ? "off" : v === 100 ? "percentile 100 (top tract)" : `percentile ${v}`,
   tamb: v => TAM_T[v],
+  p3t: v => v >= 100 ? "all tracts" : `percentile ${v}`,
   p3: v => `percentile ${v}`,
   k: v => `${v} px = ${fmt0(v * PX_M2)} m²`,
   S: v => v > 100 ? "none" : `≥ ${v} % built around`,
 };
 const RL = {
-  D: "Ring width", p2: "Fill in tracts from", tam: "Patches up to", gap: "Also narrow gaps",
+  D: "Ring width", E: "Built-up in the ring discounted",
+  p2: "Fill in tracts from", tam: "Patches up to", gap: "Also narrow gaps",
   p2b: "Bigger patches in tracts from", tamb: "Patches there up to",
   p2t: "ALL open land inside, in tracts from",
-  p3: "Floor: persons / km² built below", k: "Cap per dwelling", S: "Never trim pixels with",
+  p3t: "Only in tracts below", p3: "Floor: persons / km² built below", k: "Cap per dwelling", S: "Never trim pixels with",
 };
-const RG = { 1: ["D"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3", "k", "S"] };
-st.r = { D: 200, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, on1: true, on2: true, on3: true, modo: "tope", p3: 10, k: 1, S: 80, fuera: true };
+const RG = { 1: ["D", "E"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3t", "p3", "k", "S"] };
+st.r = { D: 200, E: 0, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, on1: true, on2: true, on3: true, modo: "tope",
+         p3t: 25, p3: 10, k: 1, S: 80, fuera: true };
 let mPrevio = "t1";
 const modo3 = () => st.r.on3 ? st.r.modo : "no";
 const RDAT = {};
@@ -665,32 +676,63 @@ async function rgbPng(url) {
   return { w: bmp.width, h: bmp.height, d: cx.getImageData(0, 0, bmp.width, bmp.height).data };
 }
 async function rdatos(slug, anio) {
-  // por pixel: clase de parche (D 100/200/400) y % construido alrededor; por radio: pixeles
-  // construidos (1, 3), abiertos por clase de parche y hueco, e histogramas del % construido
+  // por pixel: % construido alrededor (sh), distancia al borde en clases de 50 m y hueco (dh);
+  // para los pixeles abiertos de la ciudad, en orden, las clases de parche para cada D (pa, pb).
+  // Ver bordes_png en 15_visor_datos.R
   const k = slug + anio;
   if (RDAT[k]) return RDAT[k];
-  const cl = await clase(slug, anio), pa = await rgbPng(`${DATOS}${slug}/parches_${anio}.png`);
+  const cl = await clase(slug, anio);
+  const [pa, ba, bb, bc] = await Promise.all([rgbPng(`${DATOS}${slug}/parches_${anio}.png`),
+    rgbPng(`${DATOS}${slug}/bordesa_${anio}.png`), rgbPng(`${DATOS}${slug}/bordesb_${anio}.png`), rgbPng(`${DATOS}${slug}/bordesc_${anio}.png`)]);
   const n = cl.w * cl.h, nr = RADIOS[slug][anio].cod.length + 1;
-  const pc = new Uint8Array(n), p4 = new Uint8Array(n), sh = new Uint8Array(n);
-  const nb1 = new Float64Array(nr), nb3 = new Float64Array(nr), hp = [0, 1, 2].map(() => new Float64Array(nr * 32));
-  const hs1 = new Float64Array(nr * 101), hs3 = new Float64Array(nr * 101);
+  let m2 = 0;
+  for (let i = 0; i < n; i++) if ((cl.code[i] & 3) === 2) m2++;
+  const sh = new Uint8Array(n), dh = new Uint8Array(n), A = new Uint32Array(m2), B = new Uint32Array(m2);
+  const fila = new Int32Array(cl.h + 1), nb1 = new Float64Array(nr);
+  let q = 0;
   for (let i = 0, j = 0; i < n; i++, j += 4) {
-    const R = cl.code[i], c = R & 3, r = cl.rid[i];
-    if (c === 1 || c === 3) {
-      const s = Math.min(pa.d[j + 2], 100); sh[i] = s;
-      if (c === 1) { nb1[r]++; hs1[r * 101 + s]++; } else { nb3[r]++; hs3[r * 101 + s]++; }
-    } else if (c === 2) {
-      const a = pa.d[j] & 7, b = (pa.d[j] >> 3) & 7, d = pa.d[j + 1] & 7, g = (R >> 4) & 3;
-      pc[i] = pa.d[j]; p4[i] = d;
-      hp[0][r * 32 + a * 4 + g]++; hp[1][r * 32 + b * 4 + g]++; hp[2][r * 32 + d * 4 + g]++;
-    }
+    if (i % cl.w === 0) fila[i / cl.w] = q;
+    const c = cl.code[i] & 3;
+    if (c === 0) continue;
+    dh[i] = bc.d[j + 2];   // canal B: bits 0-3 distancia al borde (clases de 50 m), 4-7 hueco (indice de GAP_M)
+    if (c === 1 || c === 3) { sh[i] = Math.min(pa.d[j + 2], 100); if (c === 1) nb1[cl.rid[i]]++; }
+    else { A[q] = ba.d[j] * 65536 + ba.d[j + 1] * 256 + ba.d[j + 2]; B[q] = bb.d[j] * 65536 + bb.d[j + 1] * 256 + bb.d[j + 2]; q++; }
   }
-  RDAT[k] = { w: cl.w, h: cl.h, pc, p4, sh, nb1, nb3, hp, hs1, hs3 };
+  fila[cl.h] = q;
+  RDAT[k] = { w: cl.w, h: cl.h, sh, dh, A, B, fila, nb1, nr, H: {} };
   return RDAT[k];
 }
-const tieneReglas = () => { const c = ciudad(); return !!(c && c.parches && c.parches.length === 4); };
-const parcheDe = (X, i) => st.r.D === 100 ? X.pc[i] & 7 : st.r.D === 200 ? (X.pc[i] >> 3) & 7 : X.p4[i];
-const llenaR = (c, g, lim, gok) => c >= 1 && c <= 6 && (c <= lim || (st.r.gap > 0 && gok && g >= 1 && g <= st.r.gap));
+const tieneReglas = () => { const c = ciudad(); return !!(c && c.bordes && c.bordes.length === 4); };
+const jD = () => st.r.on1 ? st.r.D / 50 : 0;                       // indice de D (0-10)
+const eE = () => st.r.on1 && st.r.D > 0 ? st.r.E : 0;              // descuento de construido en la franja
+const claseP = (X, q, jj) => jj < 6 ? (X.A[q] >>> (4 * jj)) & 15 : (X.B[q] >>> (4 * (jj - 6))) & 15;
+const enFranja = (X, i, E, jj) => E > 0 && (X.dh[i] & 15) < jj && X.sh[i] < E;
+const llenaR = (c, g, lim, gok) => c >= 1 && c <= 9 && (c <= lim || (st.r.gap > 0 && gok && g >= 1 && g <= st.r.gap));
+function qDe(X, cl, i) {
+  // posicion del pixel abierto i en A / B
+  const y = Math.floor(i / X.w);
+  let q = X.fila[y];
+  for (let k = y * X.w; k < i; k++) if ((cl.code[k] & 3) === 2) q++;
+  return q;
+}
+function rhist(slug, anio) {
+  // por radio, para la D y el descuento elegidos: abierto por clase de parche (0-7) y hueco (0-8),
+  // histogramas del % construido de lo que queda (1 y 3) y pixeles descontados en la franja
+  const X = RDAT[slug + anio], jj = jD(), E = eE(), key = jj + "|" + E;
+  if (X.H[key]) return X.H[key];
+  const cl = CLASE[slug + anio], nr = X.nr, n = X.w * X.h;
+  const hp = new Float32Array(nr * 208), hs1 = new Float64Array(nr * 101), hs3 = new Float64Array(nr * 101), ne = new Float64Array(nr);
+  let q = 0;
+  for (let i = 0; i < n; i++) {
+    const c = cl.code[i] & 3;
+    if (c === 0) continue;
+    const r = cl.rid[i];
+    if (c === 1) { if (enFranja(X, i, E, jj)) ne[r]++; else hs1[r * 101 + X.sh[i]]++; }
+    else if (c === 3) hs3[r * 101 + X.sh[i]]++;
+    else { hp[r * 208 + claseP(X, q, jj) * 13 + (X.dh[i] >> 4)]++; q++; }
+  }
+  return X.H[key] = { hp, hs1, hs3, ne };
+}
 function percentilV(v, p) {
   if (!v.length) return 0;
   const x = v.slice().sort((a, b) => a - b), h = (x.length - 1) * p / 100, lo = Math.floor(h);
@@ -712,7 +754,7 @@ const RCALC = {};
 function rcalc(slug, anio) {
   const key = `${slug}|${anio}|${JSON.stringify(st.r)}`;
   if (RCALC[key]) return RCALC[key];
-  const X = RDAT[slug + anio], Y = RADIOS[slug][anio], nr = X.nb1.length, di = { 100: 0, 200: 1, 400: 2 }[st.r.D];
+  const X = RDAT[slug + anio], Y = RADIOS[slug][anio], nr = X.nr, Hh = rhist(slug, anio), H = Hh.hp;
   let sb = 0, sn = 0;
   for (let r = 1; r < nr; r++) { sb += Y.construido[r - 1]; sn += X.nb1[r]; }
   const f = sn > 0 ? sb / sn : 0;   // km2 por pixel del visor, calibrado con lo construido de 11
@@ -726,60 +768,61 @@ function rcalc(slug, anio) {
   }
   const d2 = st.r.p2 === 0 ? 0 : percentilV(du, st.r.p2), dHi = st.r.p2b > 100 ? Infinity : percentilV(du, st.r.p2b);
   const dTot = st.r.p2t > 100 ? Infinity : percentilV(du, st.r.p2t);
-  const d3 = percentilV(db, st.r.p3);
+  const d3 = percentilV(db, st.r.p3), d3t = st.r.p3t >= 100 ? Infinity : percentilV(du, st.r.p3t);
   const lim = new Uint8Array(nr), gok = new Uint8Array(nr), t = new Int16Array(nr).fill(-1);
-  const fillR = new Float64Array(nr), dropR = new Float64Array(nr), dropO = new Float64Array(nr);
-  let built = 0, fill = 0, drop = 0, dropOut = 0, ring = 0, open = 0, pop = 0, nF = 0, nT = 0;
+  const fillR = new Float64Array(nr), dropR = new Float64Array(nr), dropO = new Float64Array(nr), edgeR = new Float64Array(nr);
+  let built = 0, fill = 0, drop = 0, dropOut = 0, edge = 0, ring = 0, open = 0, pop = 0, nF = 0, nT = 0, nE = 0;
   const viv = Y.viv || [];
   for (let r = 1; r < nr; r++) {
-    const j = r - 1, u = Y.construido[j] + Y.abierto[j], H = X.hp[di];
+    const j = r - 1, u = Y.construido[j] + Y.abierto[j], d = Y.dens[j];
     if (u > 0) {
       pop += Y.personas[j]; built += Y.construido[j];
-      const d = Y.dens[j];
+      edgeR[r] = Hh.ne[r] * f;
+      if (edgeR[r] > 0) { edge += edgeR[r]; nE++; }
       // en los radios mas densos (>= dTot) todo el abierto interior se rellena, de cualquier tamano
       // (clase 6); el agua y su orilla (clase 7) y la franja del borde quedan abiertas igual
-      lim[r] = !st.r.on2 ? 0 : d >= 0 && d >= dTot ? 6 : d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
+      lim[r] = !st.r.on2 ? 0 : d >= 0 && d >= dTot ? 9 : d >= 0 && d >= dHi ? Math.max(st.r.tamb, st.r.tam) : d >= 0 && d >= d2 ? st.r.tam : 0;
       gok[r] = st.r.on2 && d >= 0 && (d >= d2 || d >= dTot) ? 1 : 0;
-      for (let g = 0; g < 4; g++) {
-        const km = H[r * 32 + g] * f;
-        if (!st.r.on1 && gok[r] && st.r.gap > 0 && g >= 1 && g <= st.r.gap) fillR[r] += km; else ring += km;
-      }
-      for (let c = 1; c <= 7; c++) for (let g = 0; g < 4; g++) {
-        const km = H[r * 32 + c * 4 + g] * f;
-        if (llenaR(c, g, lim[r], gok[r])) fillR[r] += km; else open += km;
+      for (let c = 0; c <= 15; c++) for (let g = 0; g <= 12; g++) {
+        const km = H[r * 208 + c * 13 + g] * f;
+        if (!km) continue;
+        if (c === 0) ring += km; else if (llenaR(c, g, lim[r], gok[r])) fillR[r] += km; else open += km;
       }
       if (fillR[r] > 0) { fill += fillR[r]; nF++; }
     }
-    // regla 3
+    // regla 3, solo en los radios por debajo del percentil p3t de densidad (o sin ciudad)
+    if (!(d < 0 || d < d3t)) continue;
     let keep = -1, H2 = null;
-    if (modo3() === "piso" && u > 0 && Y.construido[j] > 0 && Y.personas[j] / Y.construido[j] < d3 && f > 0)
+    const bRest = Y.construido[j] - edgeR[r];
+    if (modo3() === "piso" && u > 0 && bRest > 0 && Y.personas[j] / bRest < d3 && f > 0)
       keep = Y.personas[j] / d3 / f;
     else if (modo3() === "tope" && viv[j] >= 0 && f > 0) {
       keep = viv[j] * st.r.k * PX_M2 / 1e6 / f;
-      if (st.r.fuera) H2 = X.hs3;
+      if (st.r.fuera) H2 = Hh.hs3;
     }
     if (keep >= 0) {
-      t[r] = umbralShare(X.hs1, H2, r, keep);
+      t[r] = umbralShare(Hh.hs1, H2, r, keep);
       if (t[r] >= 0) {
-        for (let s = 0; s < t[r]; s++) { dropR[r] += X.hs1[r * 101 + s] * f; if (H2) dropO[r] += H2[r * 101 + s] * f; }
+        for (let s = 0; s < t[r]; s++) { dropR[r] += Hh.hs1[r * 101 + s] * f; if (H2) dropO[r] += H2[r * 101 + s] * f; }
         if (u > 0) drop += dropR[r];
         dropOut += dropO[r];
         if (dropR[r] + dropO[r] > 0) nT++;
       }
     }
   }
-  return RCALC[key] = { d2, dHi, dTot, d3, lim, gok, t, fillR, dropR, dropO, f, built0: built, fill, drop, dropOut,
-                        built1: built + fill - drop, ring, open, pop, nF, nT, du, db };
+  return RCALC[key] = { d2, dHi, dTot, d3, d3t, lim, gok, t, fillR, dropR, dropO, edgeR, f, built0: built, fill, drop, dropOut, edge,
+                        built1: built - edge + fill - drop, ring, open, pop, nF, nT, nE, du, db, jj: jD(), E: eE() };
 }
-function claseRegla(X, R, i, rid, C) {
+function claseRegla(X, R, i, q, rid, C) {
+  // q: posicion del pixel en A / B si es abierto de la ciudad
   const c = R & 3;
   if (c === 0) return null;
   const r = rid[i];
-  if (c === 1) return C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "rb";
+  if (c === 1) return enFranja(X, i, C.E, C.jj) ? "re" : C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "rb";
   if (c === 3) return modo3() === "tope" && st.r.fuera && C.t[r] >= 0 && X.sh[i] < C.t[r] ? "rx" : "ru";
-  const p = parcheDe(X, i);
-  if (p === 0) { const g = (R >> 4) & 3; return !st.r.on1 && C.gok[r] && st.r.gap > 0 && g >= 1 && g <= st.r.gap ? "rf" : "rr"; }
-  return llenaR(p, (R >> 4) & 3, C.lim[r], C.gok[r]) ? "rf" : "ro";
+  const p = claseP(X, q, C.jj);
+  if (p === 0) return "rr";
+  return llenaR(p, X.dh[i] >> 4, C.lim[r], C.gok[r]) ? "rf" : "ro";
 }
 
 // deslizadores
@@ -815,10 +858,11 @@ function ponerReglasIzq() {
   $("r-fuera").checked = st.r.fuera;
   for (const n of [1, 2, 3]) { $("on" + n).checked = st.r["on" + n]; $("rb-" + n).classList.toggle("off", !st.r["on" + n]); }
   $("dz-tamb").classList.toggle("apagado", st.r.p2b > 100);
+  $("dz-E").classList.toggle("apagado", st.r.D === 0);
   const C = st.slug && RDAT[st.slug + st.anio] ? rcalc(st.slug, st.anio) : null;
-  $("r3-ayuda").textContent = modo3() === "no" ? "No trimming."
+  $("r3-ayuda").textContent = (modo3() === "no" ? "" : `Only in tracts below percentile ${st.r.p3t} of urbanized density${C && isFinite(C.d3t) ? ` (${fmt0(C.d3t)} p/km² in ${st.anio})` : ""}, and in tracts with no city land. `) + (modo3() === "no" ? "No trimming."
     : modo3() === "piso" ? `Tracts with fewer persons per km² built than the city's percentile ${st.r.p3}${C ? ` (${fmt0(C.d3)} in ${st.anio})` : ""} keep only persons ÷ that floor km² of built-up: the pixels with the most built-up around them first.`
-    : `Each tract keeps at most dwellings × ${st.r.k} pixel${st.r.k === 1 ? "" : "s"} (${fmt0(st.r.k * PX_M2)} m² per dwelling, lot and street included) of built-up, the most solid pixels first. Dense tracts never reach the cap; it bites only where there are few dwellings. Dwellings: census ${CENSO[st.anio]}, all of them, occupied or not.`;
+    : `Each tract keeps at most dwellings × ${st.r.k} pixel${st.r.k === 1 ? "" : "s"} (${fmt0(st.r.k * PX_M2)} m² per dwelling, lot and street included) of built-up, the most solid pixels first. Dense tracts never reach the cap; it bites only where there are few dwellings. Dwellings: census ${CENSO[st.anio]}, all of them, occupied or not.`);
 }
 
 // panel derecho de la pestana Reglas
@@ -877,6 +921,7 @@ function panelReglas() {
   let h = cifra("GISD30 built-up", fmt1(C.built0) + " km²", fmt0(C.pop) + " persons in the city's tracts");
   h += cifra("Built-up with the rules", fmt1(C.built1) + " km²", `${C.built1 >= C.built0 ? "+" : "−"}${fmt1(Math.abs(C.built1 - C.built0))} km² · ${fmt1(100 * (C.built1 / C.built0 - 1))} %`);
   h += cifra("Filled (rule 2)", "+" + fmt1(C.fill) + " km²", `${fmt0(C.nF)} tracts · ${fmt1(C.fill + C.open > 0 ? 100 * C.fill / (C.fill + C.open) : 0)} % of the interior open land`);
+  if (C.edge > 0) h += cifra("Discounted at the edge (rule 1)", "−" + fmt1(C.edge) + " km²", `${fmt0(C.nE)} tracts · built-up within ${st.r.D} m of the edge, ${RT.E(st.r.E)}`);
   h += cifra("Trimmed (rule 3)", "−" + fmt1(C.drop) + " km²", `${fmt0(C.nT)} tracts` + (modo3() === "tope" && st.r.fuera ? ` · plus ${fmt1(C.dropOut)} km² outside the city` : ""));
   h += cifra("Persons per km² built", fmt0(C.pop / C.built1), `GISD30: ${fmt0(C.pop / C.built0)}`);
   h += cifra("Growth 1990–2020", fmt2(t1) + " %/yr", `GISD30: ${fmt2(t0)} %/yr`);
@@ -887,11 +932,12 @@ function panelReglas() {
   grafico($("g1"), { cats, actual: ia, fmt: fmt0, elegir: elegirAnio, series: [
     { n: "GISD30", c: "#8a8983", v: S.map(x => x.built0), w: 2, dash: "4 3" },
     { n: "with the rules", c: "#1f4e79", v: S.map(x => x.built1), w: 2.6 } ] });
-  $("g2-tit").textContent = "Filled and trimmed by year";
+  $("g2-tit").textContent = "Filled, trimmed and discounted by year";
   $("g2-sub").textContent = "km² of city land each rule changes.";
   grafico($("g2"), { cats, actual: ia, fmt: fmt1, elegir: elegirAnio, series: [
     { n: "filled (rule 2)", c: RC.rf.c, v: S.map(x => x.fill), w: 2.4 },
-    { n: "trimmed (rule 3)", c: RC.rx.c, v: S.map(x => x.drop), w: 2.4 } ] });
+    { n: "trimmed (rule 3)", c: RC.rx.c, v: S.map(x => x.drop), w: 2.4 },
+    { n: "discounted at the edge (rule 1)", c: RC.re.c, v: S.map(x => x.edge), w: 2.4 } ] });
   const Y = RADIOS[st.slug][a];
   if (modo3() === "tope") {
     const v = [];
@@ -1017,10 +1063,11 @@ function pintar(cl) {
     if (X) {
       const C = rcalc(st.slug, st.anio), pr = {};
       for (const [c, v] of Object.entries(RC)) pr[c] = st.ocultas.has(c) ? null : hex(v.c);
-      for (let i = 0, j = 0; i < cl.code.length; i++, j += 4) {
+      for (let i = 0, j = 0, q = 0; i < cl.code.length; i++, j += 4) {
         const R = cl.code[i];
         if (R === 0) continue;
-        const c = claseRegla(X, R, i, rid, C), col = c && pr[c];
+        const c = claseRegla(X, R, i, q, rid, C), col = c && pr[c];
+        if ((R & 3) === 2) q++;
         if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
       }
     }
@@ -1197,9 +1244,12 @@ map.on("click", e => {
   }
   const XR = RDAT[st.slug + st.anio];
   if (st.m === "reg" && XR && XR.w === cl.w) {
-    const C = rcalc(st.slug, st.anio), k = claseRegla(XR, R, i, cl.rid, C);
+    const q = code === 2 ? qDe(XR, cl, i) : -1, C = rcalc(st.slug, st.anio), k = claseRegla(XR, R, i, q, cl.rid, C);
     if (k) extra += `<br>Rules: <b>${RC[k].t}</b>`;
-    if (code === 2) { const p = parcheDe(XR, i); if (p > 0) extra += ` · patch ${p === 7 ? "water or shore" : p === 6 ? "> 20 ha" : TAM_T[p]}`; }
+    const dd = XR.dh[i] & 15, hh = XR.dh[i] >> 4;
+    if (code === 1 || code === 2) extra += `<br>From the city edge: ${dd >= 10 ? "≥ 500 m" : `${50 * dd}–${50 * dd + 50} m`}`;
+    if (code === 2) { const p = claseP(XR, q, C.jj); if (p > 0) extra += ` · patch ${p === 15 ? "water or shore" : p === 9 ? "> 100 ha" : TAM_T[p]}`;
+      extra += ` · gap: ${hh ? "closed at " + GAP_M[hh] + " m" : "not a narrow gap"}`; }
     if (code === 1 || code === 3) extra += ` · ${XR.sh[i]} % built within 150 m`;
   }
   const Q = PMBC[st.slug + st.anio];
@@ -1244,8 +1294,9 @@ function leyenda() {
     h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
   } else if (st.m === "reg") {
     for (const [c, v] of Object.entries(RC)) {
-      if (c === "rx" && modo3() === "no") continue;
-      h += item(c, v.c, c === "rr" ? (st.r.on1 ? `edge ring: open land within ${st.r.D} m of the city edge (rule 1)` : `open land within ${st.r.D} m of the edge, not a narrow gap (rule 1 off)`) : v.t);
+      if ((c === "rx" && modo3() === "no") || (c === "re" && eE() === 0) || (c === "rr" && jD() === 0)) continue;
+      h += item(c, v.c, c === "rr" ? `edge ring: open land within ${st.r.D} m of the city edge (rule 1)`
+        : c === "re" ? `built-up within ${st.r.D} m of the edge, ${RT.E(st.r.E)} (rule 1)` : v.t);
     }
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   } else {
@@ -1525,7 +1576,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0].join(",");
+  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t].join(",");
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
@@ -1546,7 +1597,7 @@ function leerHash() {
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
   if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3"];
+    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t"];
     cl.forEach((c, i) => {
       if (v[i] === undefined) return;
       if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope"].includes(v[i])) st.r.modo = v[i]; }
@@ -1558,7 +1609,7 @@ function leerHash() {
 
 const vistaInicial = (location.hash.match(/v=(metodos|resultados|reglas)/) || [])[1];
 async function iniciar() {
-  try { INDICE = await json(DATOS + "indice.json"); }
+  try { INDICE = await json(DATOS + "indice.json", { cache: "no-cache" }); }
   catch (e) {
     $("cargando").style.display = "block";
     $("cargando").innerHTML = "Could not read <code>datos/indice.json</code>. Serve this folder over http (for example <code>python -m http.server</code>) instead of opening the file directly.";

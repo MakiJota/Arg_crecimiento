@@ -22,6 +22,9 @@
 #   mapbiomas_2020.png  comparacion con MapBiomas 2020 (paso 17), si existe
 #   parches_<anio>.png  clases de parche del interior (paso 18) y solidez de lo construido; ver
 #                       parches_png. --solo-parches rehace solo estos
+#   bordesa/b/c_<anio>.png  franja de 0 a 500 m, parches hasta 100 ha, distancia al borde y huecos
+#                       hasta 500 m (paso 18, version 2)
+#                       para la pestana Reglas; ver bordes_png. --solo-bordes rehace solo estos
 #   pedro_mb_<anio>.png las manchas GISD30 contra MapBiomas de Pedro (ag_43), por censo: R = b +
 #                       4 c + 16 k (ver pedro_mb). Lee ../plataforma/datos/<contorno>/manchas_*.js
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
@@ -126,6 +129,37 @@ parches_png <- function(slug, x, plantilla, dir) {
 }
 
 
+bordes_png <- function(slug, x, plantilla, dir) {
+  # bordesa/b/c_<anio>.png para la pestana Reglas (paso 18, bordes2_<anio>.tif, version 2).
+  # Clases de parche de 4 bits (0 no interior, 1-9 tamano, 15 agua) para D = 0, 50, ..., 500:
+  #   a = R * 65536 + G * 256 + B: D 0-250 (d0 en los bits 0-3)
+  #   b = lo mismo para D 300-500
+  #   c: R = distancia al borde en clases de 50 m, 0-10, tope 10 (solo en la ciudad)
+  #        + 16 * hueco (indice 0-12 de GAP_M del paso 18)
+  hechos <- integer(0)
+  for (a in ANIOS) {
+    fb <- file.path(RPIPE, "outputs", "parches", slug, sprintf("bordes2_%d.tif", a))
+    fr <- file.path(REGLAS, slug, sprintf("reglas_%d.tif", a))
+    if (!file.exists(fb) || !file.exists(fr)) next
+    bo <- rast(fb); rr <- rast(fr); code <- x[[as.character(a)]]$code
+    ciudad <- code == 1 | code == 2
+    d50 <- ifel(ciudad, min(rr$dist %/% 50, 10), 0)
+    va <- bo$d0; vb <- bo$d300
+    for (j in 1:5) va <- va + bo[[paste0("d", 50 * j)]] * 16^j
+    for (j in 1:4) vb <- vb + bo[[paste0("d", 300 + 50 * j)]] * 16^j
+    vc <- d50 + 16 * bo$hueco
+    for (n in c("a", "b", "c")) {
+      v <- switch(n, a = va, b = vb, c = vc)
+      r <- project(c(v %/% 65536, (v %/% 256) %% 256, v %% 256), plantilla, method = "near")
+      r <- ifel(is.na(r), 0, r)
+      png_rgb(r, file.path(dir, sprintf("bordes%s_%d.png", n, a)), "PNG", gdal = "ZLEVEL=9")
+    }
+    hechos <- c(hechos, a)
+  }
+  hechos
+}
+
+
 una <- function(slug) {
   t0 <- Sys.time()
   x <- cargar_densidad(RPIPE, slug)
@@ -193,6 +227,7 @@ una <- function(slug) {
   }
 
   parches <- parches_png(slug, x, plantilla, dir)
+  bordes <- bordes_png(slug, x, plantilla, dir)
 
   # las manchas de Pedro para los cuatro censos (ver pedro_mb)
   pedro <- integer(0)
@@ -212,13 +247,28 @@ una <- function(slug) {
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
-       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches),
+       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches), bordes = I(bordes),
        perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
 }
 
 
 dir.create(SAL, recursive = TRUE, showWarnings = FALSE)
 f_ind <- file.path(SAL, "indice.json")
+
+if ("--solo-bordes" %in% args) {
+  # solo los bordes<a|b>_<anio>.png (paso 18); marca el indice
+  ind <- jsonlite::read_json(f_ind)
+  for (s in CIUDADES) {
+    x <- cargar_densidad(RPIPE, s)
+    plantilla <- project(x[["2020"]]$code, MERC, method = "near")
+    h <- bordes_png(s, x, plantilla, file.path(SAL, s))
+    for (k in seq_along(ind$ciudades)) if (ind$ciudades[[k]]$slug == s) ind$ciudades[[k]]$bordes <- I(h)
+    cat(sprintf("  %-22s bordes %s
+", s, paste(h, collapse = ",")))
+  }
+  jsonlite::write_json(ind, f_ind, auto_unbox = TRUE, digits = NA)
+  quit(save = "no")
+}
 
 if ("--solo-parches" %in% args) {
   # solo los parches_<anio>.png (paso 18) y las viviendas de radios.json, sin rehacer el resto;
