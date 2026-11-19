@@ -108,7 +108,7 @@ png_rgb <- function(r, archivo, tipo = "PNG", ...) {
 parches_png <- function(slug, x, plantilla, dir) {
   # parches_<anio>.png para el visor de cuatro ciudades (paso 18): R = clase del parche con
   # D = 100 + 8 * clase con D = 200, G = clase con D = 400 (0 no interior, 1-6 tamano, 7 agua),
-  # B = % construido en 150 m de los pixeles construidos de la ciudad (paso 16; 0 en el resto),
+  # B = % construido en 150 m de los pixeles construidos (codigos 1 y 3; paso 16; 0 en el resto),
   # que ordena que construido se conserva cuando la regla 3 recorta un radio
   hechos <- integer(0)
   for (a in ANIOS) {
@@ -116,7 +116,7 @@ parches_png <- function(slug, x, plantilla, dir) {
     fr <- file.path(REGLAS, slug, sprintf("reglas_%d.tif", a))
     if (!file.exists(fp) || !file.exists(fr)) next
     p <- rast(fp); rr <- rast(fr); code <- x[[as.character(a)]]$code
-    sol <- ifel(code == 1, rr$share, 0)
+    sol <- ifel(code == 1 | code == 3, rr$share, 0)
     r <- project(c(p$d100 + 8 * p$d200, p$d400, sol), plantilla, method = "near")
     r <- ifel(is.na(r), 0, r)
     png_rgb(r, file.path(dir, sprintf("parches_%d.png", a)), "PNG", gdal = "ZLEVEL=9")
@@ -152,7 +152,8 @@ una <- function(slug) {
     t <- y$t[order(y$t$i_fila), ]
     radios[[as.character(a)]] <- list(censo = CENSO[[as.character(a)]], ciudad_km2 = round(y$ciudad_km2, 3),
       cod = I(t$cod), personas = I(t$personas), construido = I(round(t$km2_construido, 4)), abierto = I(round(t$km2_abierto, 4)),
-      area = I(round(t$km2_radio, 4)), dens = I(ifelse(is.na(t$dens_urb), -1, round(t$dens_urb, 1))))
+      area = I(round(t$km2_radio, 4)), dens = I(ifelse(is.na(t$dens_urb), -1, round(t$dens_urb, 1))),
+      viv = I(ifelse(is.na(t$viviendas), -1, t$viviendas)))
 
     # los radios como poligonos: recortados al marco, simplificados a 4 m, en grados con 5
     # decimales (~1 m); solo el campo i, que apunta a la fila de radios.json
@@ -220,12 +221,20 @@ dir.create(SAL, recursive = TRUE, showWarnings = FALSE)
 f_ind <- file.path(SAL, "indice.json")
 
 if ("--solo-parches" %in% args) {
-  # solo los parches_<anio>.png (paso 18), sin rehacer el resto; marca el indice
+  # solo los parches_<anio>.png (paso 18) y las viviendas de radios.json, sin rehacer el resto;
+  # marca el indice
   ind <- jsonlite::read_json(f_ind)
   for (s in CIUDADES) {
     x <- cargar_densidad(RPIPE, s)
     plantilla <- project(x[["2020"]]$code, MERC, method = "near")
     h <- parches_png(s, x, plantilla, file.path(SAL, s))
+    # viviendas por radio (tope de la regla 3 del visor) en el radios.json existente
+    fr <- file.path(SAL, s, "radios.json"); rj <- jsonlite::read_json(fr)
+    for (a in ANIOS) {
+      t <- x[[as.character(a)]]$t; t <- t[order(t$i_fila), ]
+      rj[[as.character(a)]]$viv <- I(ifelse(is.na(t$viviendas), -1, t$viviendas))
+    }
+    jsonlite::write_json(rj, fr, auto_unbox = TRUE, digits = NA)
     for (k in seq_along(ind$ciudades)) if (ind$ciudades[[k]]$slug == s) ind$ciudades[[k]]$parches <- I(h)
     cat(sprintf("  %-22s parches %s\n", s, paste(h, collapse = ",")))
   }
