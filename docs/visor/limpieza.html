@@ -50,6 +50,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .leyenda li { display: flex; gap: 8px; align-items: center; margin: 5px 0; color: var(--ink2); }
 .leyenda label, .paso .leyenda label { display: flex; gap: 8px; align-items: center; cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; color: var(--ink2); margin: 0; }
 .leyenda input { margin: 0; accent-color: var(--accent); }
+.leyenda li.sec { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--head); margin: 9px 0 2px; border-top: 1px solid var(--line); padding-top: 6px; }
+.leyenda li.sec:first-child { border-top: 0; margin-top: 2px; padding-top: 0; }
 .leyenda i { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.08); }
 
 .cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
@@ -200,7 +202,9 @@ body.modo-reglas .solo-tests { display: none; }
       <div class="regla" id="rb-0"><h4><label><input type="checkbox" id="on0"><b>0</b>Overture: remove noise, fill infrastructure</label></h4>
         <label class="chk" style="margin:0 0 6px"><input type="checkbox" id="r-op"> remove built-up in protected areas</label>
         <div id="rc-0"></div>
-        <label class="chk" style="margin:-4px 0 4px"><input type="checkbox" id="r-ofa"> airports count as urban (open land inside them is filled)</label>
+        <label class="chk" style="margin:-4px 0 4px"><input type="checkbox" id="r-ofa"> airports count as urban, whole area, from the year they are active:</label>
+        <label class="chk" style="margin:0 0 4px 22px"><input type="checkbox" id="r-otc"> when they touch the city that year</label>
+        <div id="rc-0b" style="margin-left:22px"></div>
         <label class="chk" style="margin:0 0 8px"><input type="checkbox" id="r-ofp"> parks, squares, pitches and cemeteries count as urban</label>
         <p class="ayuda" id="r0-ayuda" style="margin-top:-2px">Overture Maps describes today (2022–2025). It is used in one direction only: land that is water, protected, farmland, or has no building today was not built in 1990 either. Removing applies to every year. Crops, no-building and roads only act outside the city and in tracts below the chosen density percentile: in dense fabric a 30 m pixel mixes street and houses.</p></div>
       <div class="regla" id="rb-1"><h4><label><input type="checkbox" id="on1"><b>1</b>Edge ring</label></h4>
@@ -656,6 +660,7 @@ const RV = {         // valores de cada deslizador
   oct: [0, 20, 30, 40, 50, 60],
   oq: PCTS.slice(1).concat([100]),
   ofe: [0, 10, 20, 30, 40, 50, 60, 80],
+  oab: [0, 1, 2, 5, 10, 20],
   pf: [50, 60, 70, 75, 80, 85, 90, 95, 98],
   sx: [0, 5, 10, 20, 30, 50],
 };
@@ -681,6 +686,7 @@ const RT = {
   oct: v => v ? `≥ ${v} % road` : "off",
   oq: v => v >= 100 ? "all tracts" : `percentile ${v}`,
   ofe: v => v ? `≥ ${v} % buildings` : "off",
+  oab: v => v ? `≥ ${v} % of it built-up` : "off",
   pf: v => `percentile ${v}`,
   sx: v => v ? `≥ ${v} % services or airport` : "no exemption",
 };
@@ -692,13 +698,13 @@ const RL = {
   p3t: "Only in tracts below", p3: "Floor: persons / km² built below", k: "Cap per dwelling", S: "Never trim pixels with",
   oa: "Remove built-up on water", oc: "Remove built-up on crops (no building in the pixel)",
   os: "Remove built-up with no building within", oct: "Built-up on a road becomes road",
-  pf: "Built-up ÷ footprint above", sx: "Exempt tracts with",
+  oab: "or when GISD30 sees", pf: "Built-up ÷ footprint above", sx: "Exempt tracts with",
   oq: "Crops, no-building, roads: tracts below", ofe: "Fill open land covered by buildings (tracts from rule 2's percentile)",
 };
-const RG = { 0: ["oa", "oc", "os", "oct", "oq", "ofe"], 1: ["D", "E"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3t", "p3", "k", "pf", "sx", "S"] };
+const RG = { "0b": ["oab"], 0: ["oa", "oc", "os", "oct", "oq", "ofe"], 1: ["D", "E"], 2: ["p2", "tam", "gap", "p2b", "tamb", "p2t"], 3: ["p3t", "p3", "k", "pf", "sx", "S"] };
 st.r = { D: 200, E: 0, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, on1: true, on2: true, on3: true, modo: "tope",
          p3t: 25, p3: 10, k: 1, S: 80, fuera: true,
-         on0: true, oa: 50, op: true, oc: 1, os: 60, oct: 30, oq: 50, ofa: true, ofp: true, ofe: 30, pf: 90, sx: 10 };
+         on0: true, oa: 50, op: true, oc: 1, os: 60, oct: 30, oq: 50, ofa: true, ofp: true, ofe: 30, pf: 90, sx: 10, oab: 2, otc: true };
 st.edOn = false; st.edOpac = 0.7;
 st.anio = 1990;
 let mPrevio = "t1";
@@ -763,9 +769,45 @@ function ovQuita(O, i, c, elig) {
   if (st.r.os > 0 && O.dd[i] * 10 > st.r.os) return "on";
   return null;
 }
-function ovLlena(O, i, denso) {
+function aerComp(O) {
+  // areas de aeropuerto conexas (8 vecinos) sobre la grilla del visor; se calcula una vez
+  if (O.ac) return O.ac;
+  const n = O.ed.length, w = O.w, h = n / w, ac = new Int32Array(n), pila = [];
+  let k = 0;
+  for (let i = 0; i < n; i++) {
+    if (!(O.fl[i] & 2) || ac[i]) continue;
+    ac[i] = ++k; pila.push(i);
+    while (pila.length) {
+      const j = pila.pop(), x = j % w, y = (j - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const m = yy * w + xx;
+        if ((O.fl[m] & 2) && !ac[m]) { ac[m] = k; pila.push(m); }
+      }
+    }
+  }
+  O.nac = k;
+  return O.ac = ac;
+}
+function aerActivo(slug, anio) {
+  // 1 si el aeropuerto ya funciona ese anio: toca la ciudad (codigos 1 o 2) o GISD30 ve construido
+  // al menos oab % de su area
+  const O = OV[slug], cl = CLASE[slug + anio];
+  if (!O || !cl || !st.r.ofa) return null;
+  const ac = aerComp(O), K = O.nac, n = new Float64Array(K + 1), b = new Float64Array(K + 1), ci = new Float64Array(K + 1);
+  for (let i = 0; i < ac.length; i++) {
+    const k = ac[i]; if (!k) continue;
+    const c = cl.code[i] & 3;
+    n[k]++; if (c === 1 || c === 3) b[k]++; if (c === 1 || c === 2) ci[k]++;
+  }
+  const act = new Uint8Array(K + 1);
+  for (let k = 1; k <= K; k++) act[k] = (st.r.otc && ci[k] > 0) || (st.r.oab > 0 && 100 * b[k] / n[k] >= st.r.oab) ? 1 : 0;
+  return act;
+}
+function ovLlena(O, i, denso, act) {
   if (!O || !st.r.on0) return false;
-  if (st.r.ofa && (O.fl[i] & 2)) return true;
+  if (st.r.ofa && (O.fl[i] & 2) && act && act[O.ac[i]]) return true;
   if (st.r.ofp && (O.fl[i] & 4)) return true;
   return st.r.ofe > 0 && denso && O.ed[i] >= st.r.ofe;
 }
@@ -796,7 +838,7 @@ function rhist(slug, anio) {
   // por radio, para la D y el descuento elegidos: abierto por clase de parche (0-7) y hueco (0-8),
   // histogramas del % construido de lo que queda (1 y 3) y pixeles descontados en la franja
   const X = RDAT[slug + anio], jj = jD(), E = eE(), O = OV[slug], Y = RADIOS[slug][anio], k0 = ovCortes(slug, anio);
-  const key = [jj, E, st.r.on0, st.r.oa, st.r.op, st.r.oc, st.r.os, st.r.oct, st.r.oq, st.r.ofa, st.r.ofp, st.r.ofe, st.r.p2].join("|");
+  const key = [jj, E, st.r.on0, st.r.oa, st.r.op, st.r.oc, st.r.os, st.r.oct, st.r.oq, st.r.ofa, st.r.ofp, st.r.ofe, st.r.p2, st.r.oab, st.r.otc].join("|");
   if (X.H[key]) return X.H[key];
   const cl = CLASE[slug + anio], nr = X.nr, n = X.w * X.h;
   const hp = new Float32Array(nr * 208), hs1 = new Float64Array(nr * 101), hs3 = new Float64Array(nr * 101), ne = new Float64Array(nr);
@@ -805,11 +847,12 @@ function rhist(slug, anio) {
   // histogramas del % construido de lo construido SIN edificio hoy; acuerdo GISD30 - edificios
   const fpx = new Float64Array(nr), svc = new Float64Array(nr), tot = new Float64Array(nr);
   const hs1n = new Float64Array(nr * 101), hs3n = new Float64Array(nr * 101), acu = [0, 0, 0, 0];
-  let q = 0;
+  const act = st.r.on0 ? aerActivo(slug, anio) : null;
+  let q = 0, nf0 = 0;
   for (let i = 0; i < n; i++) {
     const c = cl.code[i] & 3, r = cl.rid[i];
     if (O) { fpx[r] += O.ed[i] / 100; tot[r]++; if (O.fl[i] & 10) svc[r]++; }
-    if (c === 0) continue;
+    if (c === 0) { if (act && (O.fl[i] & 2) && act[O.ac[i]]) { nf[r]++; nf0++; } continue; }
     if (c === 1 || c === 3) {
       if (O) { const k = c === 1 ? 0 : 2; acu[k + 1]++; if (O.ed[i] > 0) acu[k]++; }
       const o = ovQuita(O, i, c, elige(Y, r, c, k0.dq));
@@ -818,12 +861,12 @@ function rhist(slug, anio) {
       if (c === 1) { if (enFranja(X, i, E, jj)) ne[r]++; else { hs1[r * 101 + X.sh[i]]++; if (sinEd) hs1n[r * 101 + X.sh[i]]++; } }
       else { hs3[r * 101 + X.sh[i]]++; if (sinEd) hs3n[r * 101 + X.sh[i]]++; }
     } else {
-      if (ovLlena(O, i, Y.dens[r - 1] >= 0 && Y.dens[r - 1] >= k0.d2)) nf[r]++;
+      if (ovLlena(O, i, Y.dens[r - 1] >= 0 && Y.dens[r - 1] >= k0.d2, act)) nf[r]++;
       else hp[r * 208 + claseP(X, q, jj) * 13 + (X.dh[i] >> 4)]++;
       q++;
     }
   }
-  return X.H[key] = { hp, hs1, hs3, ne, no, no3, nf, tipo, fpx, svc, tot, hs1n, hs3n, acu, ...k0 };
+  return X.H[key] = { hp, hs1, hs3, ne, no, no3, nf, nf0, act, tipo, fpx, svc, tot, hs1n, hs3n, acu, ...k0 };
 }
 function percentilV(v, p) {
   if (!v.length) return 0;
@@ -936,15 +979,15 @@ function rcalc(slug, anio) {
   }
   const tp = Object.fromEntries(Object.entries(Hh.tipo).map(([k, v]) => [k, v * f]));
   return RCALC[key] = { d2, dHi, dTot, d3, d3t, lim, gok, t, fillR, dropR, dropO, edgeR, oRemR, oFillR, f, built0: built, fill, drop, dropOut, edge,
-                        oRem, oRemOut, oFill, oTipo: tp, dq: Hh.dq, rf, rz, nEx, acu: Hh.acu, fpx: Hh.fpx, built1: built - oRem - edge + oFill + fill - drop, ring, open, pop, nF, nT, nE, du, db, jj: jD(), E: eE() };
+                        oRem, oRemOut, oFill, oTipo: tp, dq: Hh.dq, rf, rz, nEx, acu: Hh.acu, fpx: Hh.fpx, act: Hh.act, oFill0: Hh.nf0 * f, built1: built - oRem - edge + oFill + fill - drop, ring, open, pop, nF, nT, nE, du, db, jj: jD(), E: eE() };
 }
 function claseRegla(X, R, i, q, rid, C) {
   // q: posicion del pixel en A / B si es abierto de la ciudad
-  const c = R & 3;
-  if (c === 0) return null;
-  const r = rid[i], O = OV[st.slug], Y = RADIOS[st.slug][st.anio];
+  const c = R & 3, O = OV[st.slug];
+  if (c === 0) return C.act && O && (O.fl[i] & 2) && C.act[O.ac[i]] ? "of" : null;
+  const r = rid[i], Y = RADIOS[st.slug][st.anio];
   if (c === 1 || c === 3) { const o = ovQuita(O, i, c, elige(Y, r, c, C.dq)); if (o) return o; }
-  else if (ovLlena(O, i, Y.dens[r - 1] >= 0 && Y.dens[r - 1] >= C.d2)) return "of";
+  else if (ovLlena(O, i, Y.dens[r - 1] >= 0 && Y.dens[r - 1] >= C.d2, C.act)) return "of";
   const hu = modo3() === "huella", libre = !hu || (O && O.ed[i] === 0);
   if (c === 1) return enFranja(X, i, C.E, C.jj) ? "re" : C.t[r] >= 0 && libre && X.sh[i] < C.t[r] ? "rx" : "rb";
   if (c === 3) return (modo3() === "tope" || hu) && st.r.fuera && C.t[r] >= 0 && libre && X.sh[i] < C.t[r] ? "rx" : "ru";
@@ -971,7 +1014,7 @@ function armarReglas() {
   };
   $("r-fuera").onchange = e => { st.r.fuera = e.target.checked; rapido(); };
   for (const n of [0, 1, 2, 3]) $("on" + n).onchange = e => { st.r["on" + n] = e.target.checked; rapido(); };
-  for (const k of ["op", "ofa", "ofp"]) $("r-" + k).onchange = e => { st.r[k] = e.target.checked; rapido(); };
+  for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).onchange = e => { st.r[k] = e.target.checked; rapido(); };
   document.querySelectorAll("#r-modo button").forEach(b => b.onclick = () => { st.r.modo = b.dataset.v; rapido(); });
 }
 function ponerReglasIzq() {
@@ -987,7 +1030,7 @@ function ponerReglasIzq() {
   $("r-fuera-l").style.display = st.r.modo === "piso" ? "none" : "";
   $("r-fuera").checked = st.r.fuera;
   for (const n of [0, 1, 2, 3]) { $("on" + n).checked = st.r["on" + n]; $("rb-" + n).classList.toggle("off", !st.r["on" + n]); }
-  for (const k of ["op", "ofa", "ofp"]) $("r-" + k).checked = st.r[k];
+  for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).checked = st.r[k];
   $("dz-tamb").classList.toggle("apagado", st.r.p2b > 100);
   $("dz-E").classList.toggle("apagado", st.r.D === 0);
   const C = st.slug && RDAT[st.slug + st.anio] ? rcalc(st.slug, st.anio) : null;
@@ -1056,7 +1099,7 @@ function panelReglas() {
     const T = C.oTipo;
     h += cifra("Removed by Overture (rule 0)", "−" + fmt1(C.oRem) + " km²",
       `water/protected ${fmt1(T.ow)} · crops ${fmt1(T.oc)} · no building ${fmt1(T.on)} · roads ${fmt1(T.od)} · plus ${fmt1(C.oRemOut)} km² outside the city`);
-    h += cifra("Filled by Overture (rule 0)", "+" + fmt1(C.oFill) + " km²", "airports, public spaces, buildings today");
+    h += cifra("Filled by Overture (rule 0)", "+" + fmt1(C.oFill) + " km²", `airports, public spaces, buildings today · airport land outside the city: ${fmt1(C.oFill0 || 0)} km²`);
   } else h += cifra("Overture", "no tags", "this agglomeration has no Overture tags yet");
   h += cifra("Filled (rule 2)", "+" + fmt1(C.fill) + " km²", `${fmt0(C.nF)} tracts · ${fmt1(C.fill + C.open > 0 ? 100 * C.fill / (C.fill + C.open) : 0)} % of the interior open land`);
   if (C.edge > 0) h += cifra("Discounted at the edge (rule 1)", "−" + fmt1(C.edge) + " km²", `${fmt0(C.nE)} tracts · built-up within ${st.r.D} m of the edge, ${RT.E(st.r.E)}`);
@@ -1225,7 +1268,7 @@ function pintar(cl) {
       for (const [c, v] of Object.entries(RC)) pr[c] = st.ocultas.has(c) ? null : hex(v.c);
       for (let i = 0, j = 0, q = 0; i < cl.code.length; i++, j += 4) {
         const R = cl.code[i];
-        if (R === 0) continue;
+        if (R === 0 && !(C.act && OV[st.slug] && (OV[st.slug].fl[i] & 2))) continue;
         const c = claseRegla(X, R, i, q, rid, C), col = c && pr[c];
         if ((R & 3) === 2) q++;
         if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
@@ -1478,12 +1521,33 @@ function leyenda() {
     if (corteActual() > 0) h += `<li><i style="background:#86afd9;opacity:.37"></i>faded: below the threshold</li>`;
     h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>tract limit; no fill if under 10 % of the tract is city</li>`;
   } else if (st.m === "reg") {
-    for (const [c, v] of Object.entries(RC)) {
-      if ((c === "rx" && modo3() === "no") || (c === "re" && eE() === 0) || (c === "rr" && jD() === 0)) continue;
-      if (c[0] === "o" && c !== "ro" && (!st.r.on0 || !OV[st.slug])) continue;
-      h += item(c, v.c, c === "rr" ? `edge ring: open land within ${st.r.D} m of the city edge (rule 1)`
-        : c === "re" ? `built-up within ${st.r.D} m of the edge, ${RT.E(st.r.E)} (rule 1)` : v.t);
+    // por secciones: de donde sale cada pixel, con sus km2 en esta ciudad y anio
+    const C = RDAT[st.slug + st.anio] && tieneReglas() ? rcalc(st.slug, st.anio) : null, T = C ? C.oTipo : {};
+    const km = (x, signo) => C && isFinite(x) ? ` <b style="color:var(--ink);font-weight:600;white-space:nowrap;margin-left:auto">${signo}${fmt1(Math.abs(x))} km²</b>` : "";
+    const sec = (t, on) => `<li class="sec">${t}${on === false ? " · off" : ""}</li>`;
+    const it = (c, t, extra = "") => h += item(c, RC[c].c, t + extra);
+    h += sec("GISD30 (what the image sees)");
+    it("rb", "built-up, kept");
+    it("ru", "built outside the city, kept");
+    if (OV[st.slug]) {
+      h += sec("Rule 0 · Overture", st.r.on0);
+      if (st.r.on0) {
+        it("ow", "removed: water or protected area", km(T.ow, "−"));
+        it("oc", "removed: farmland / cropland, no building", km(T.oc, "−"));
+        it("on", "removed: no building nearby", km(T.on, "−"));
+        it("od", "road, not built-up", km(T.od, "−"));
+        it("of", "filled: airport, public space, buildings", km(C && C.oFill, "+"));
+      }
     }
+    h += sec("Rule 1 · Edge ring", st.r.on1 && st.r.D > 0);
+    if (jD() > 0) it("rr", `open land within ${st.r.D} m of the edge, kept as fringe`);
+    if (eE() > 0) it("re", `built-up discounted at the edge (${RT.E(st.r.E)})`, km(C && C.edge, "−"));
+    h += sec("Rule 2 · Fill inside", st.r.on2);
+    it("rf", "open land filled as built-up", km(C && C.fill, "+"));
+    it("ro", "open land inside, kept (large patch, sparse tract, water)");
+    h += sec("Rule 3 · Trim", modo3() !== "no");
+    if (modo3() !== "no") it("rx", { piso: "trimmed: below the percentile floor", tope: "trimmed: over the dwelling cap", huella: "trimmed: over the footprint cap, no building" }[modo3()], km(C && C.drop, "−"));
+    h += sec("Other layers");
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   } else {
     for (const c of ["bd", "bs", "fd", "fs"]) if (E[c]) h += item(c, COL[c], E[c]);
@@ -1764,7 +1828,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx].join(",");
+  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx, R.oab, R.otc ? 1 : 0].join(",");
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
@@ -1785,11 +1849,11 @@ function leerHash() {
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
   if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx"];
+    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx", "oab", "otc"];
     cl.forEach((c, i) => {
       if (v[i] === undefined) return;
       if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope", "huella"].includes(v[i])) st.r.modo = v[i]; }
-      else if (["fuera", "on0", "on1", "on2", "on3", "op", "ofa", "ofp"].includes(c)) st.r[c] = v[i] === "1";
+      else if (["fuera", "on0", "on1", "on2", "on3", "op", "ofa", "ofp", "otc"].includes(c)) st.r[c] = v[i] === "1";
       else if (RV[c].includes(Number(v[i]))) st.r[c] = Number(v[i]);
     });
   }
