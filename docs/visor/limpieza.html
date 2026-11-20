@@ -219,6 +219,8 @@ body.modo-reglas .solo-tests { display: none; }
         </div>
         <div id="rc-3"></div>
         <p class="ayuda" id="r3-ayuda" style="margin-top:-4px"></p></div>
+      <div class="regla" id="rb-rc"><h4><label><input type="checkbox" id="reclas"><b>=</b>Reclassify the result</label></h4>
+        <p class="ayuda" style="margin-top:0">After all the rules, show only <b>urbanized</b> land (built-up kept + every fill), the <b>fringe</b> (edge ring) and <b>captured open space</b> (open land inside the city that stays open). Everything removed or trimmed is not urban. The rules still run underneath; the panel on the right is unchanged.</p></div>
     </div>
     <div class="paso">
       <p class="ayuda" id="mb-nota"></p>
@@ -638,6 +640,9 @@ const RC = {
   on: { c: "#e31a1c", t: "removed: no building nearby today (Overture)" },
   od: { c: "#737373", t: "road, not built-up (Overture)" },
   of: { c: "#74c476", t: "filled: airport, public space or buildings today (Overture)" },
+  uU: { c: "#1f4e79", t: "urbanized" },
+  uF: { c: "#9ecae1", t: "fringe (edge ring)" },
+  uK: { c: "#8fc27a", t: "captured open space" },
 };
 const PX_M2 = 900;   // un pixel de GISD30, 30 x 30 m
 const P5 = [30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
@@ -705,7 +710,9 @@ const RG = { "0b": ["oab"], 0: ["oa", "oc", "os", "oct", "oq", "ofe"], 1: ["D", 
 st.r = { D: 200, E: 0, p2: 25, tam: 3, gap: 2, p2b: 50, tamb: 4, p2t: 75, on1: true, on2: true, on3: true, modo: "tope",
          p3t: 25, p3: 10, k: 1, S: 80, fuera: true,
          on0: true, oa: 50, op: true, oc: 1, os: 60, oct: 30, oq: 50, ofa: true, ofp: true, ofe: 30, pf: 90, sx: 10, oab: 2, otc: true };
-st.edOn = false; st.edOpac = 0.7;
+st.edOn = false; st.edOpac = 0.7; st.reclas = false;
+// reclasificacion final: cada clase de las reglas pasa a urbanizado, franja, abierto capturado o nada
+const REMAP = { rb: "uU", rf: "uU", of: "uU", rr: "uF", ro: "uK", ru: "ru" };
 st.anio = 1990;
 let mPrevio = "t1";
 const modo3 = () => st.r.on3 ? st.r.modo : "no";
@@ -1014,6 +1021,7 @@ function armarReglas() {
   };
   $("r-fuera").onchange = e => { st.r.fuera = e.target.checked; rapido(); };
   for (const n of [0, 1, 2, 3]) $("on" + n).onchange = e => { st.r["on" + n] = e.target.checked; rapido(); };
+  $("reclas").onchange = e => { st.reclas = e.target.checked; rapido(); };
   for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).onchange = e => { st.r[k] = e.target.checked; rapido(); };
   document.querySelectorAll("#r-modo button").forEach(b => b.onclick = () => { st.r.modo = b.dataset.v; rapido(); });
 }
@@ -1031,6 +1039,7 @@ function ponerReglasIzq() {
   $("r-fuera").checked = st.r.fuera;
   for (const n of [0, 1, 2, 3]) { $("on" + n).checked = st.r["on" + n]; $("rb-" + n).classList.toggle("off", !st.r["on" + n]); }
   for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).checked = st.r[k];
+  $("reclas").checked = st.reclas; $("rb-rc").classList.toggle("off", false);
   $("dz-tamb").classList.toggle("apagado", st.r.p2b > 100);
   $("dz-E").classList.toggle("apagado", st.r.D === 0);
   const C = st.slug && RDAT[st.slug + st.anio] ? rcalc(st.slug, st.anio) : null;
@@ -1269,7 +1278,7 @@ function pintar(cl) {
       for (let i = 0, j = 0, q = 0; i < cl.code.length; i++, j += 4) {
         const R = cl.code[i];
         if (R === 0 && !(C.act && OV[st.slug] && (OV[st.slug].fl[i] & 2))) continue;
-        const c = claseRegla(X, R, i, q, rid, C), col = c && pr[c];
+        const c0 = claseRegla(X, R, i, q, rid, C), c = st.reclas ? REMAP[c0] : c0, col = c && pr[c];
         if ((R & 3) === 2) q++;
         if (col) { d[j] = col[0]; d[j + 1] = col[1]; d[j + 2] = col[2]; d[j + 3] = 255; }
       }
@@ -1526,6 +1535,14 @@ function leyenda() {
     const km = (x, signo) => C && isFinite(x) ? ` <b style="color:var(--ink);font-weight:600;white-space:nowrap;margin-left:auto">${signo}${fmt1(Math.abs(x))} km²</b>` : "";
     const sec = (t, on) => `<li class="sec">${t}${on === false ? " · off" : ""}</li>`;
     const it = (c, t, extra = "") => h += item(c, RC[c].c, t + extra);
+    if (st.reclas) {
+      h += sec("Reclassified result");
+      it("uU", "urbanized: built-up kept + all fills", km(C && C.built1, ""));
+      if (jD() > 0) it("uF", "fringe: open land in the edge ring", km(C && C.ring, ""));
+      it("uK", "captured open space: open land inside, kept", km(C && C.open, ""));
+      it("ru", "built outside the city, kept");
+      h += `<li style="color:var(--ink3)">removed, trimmed and roads: not urban (no colour)</li>`;
+    } else {
     h += sec("GISD30 (what the image sees)");
     it("rb", "built-up, kept");
     it("ru", "built outside the city, kept");
@@ -1547,6 +1564,7 @@ function leyenda() {
     it("ro", "open land inside, kept (large patch, sparse tract, water)");
     h += sec("Rule 3 · Trim", modo3() !== "no");
     if (modo3() !== "no") it("rx", { piso: "trimmed: below the percentile floor", tope: "trimmed: over the dwelling cap", huella: "trimmed: over the footprint cap, no building" }[modo3()], km(C && C.drop, "−"));
+    }
     h += sec("Other layers");
     if (st.capa === "lim") h += `<li><i style="background:none;border:1.5px solid ${ROJO}"></i>census tract limit</li>`;
   } else {
@@ -1828,7 +1846,7 @@ function pestana(p) {
 }
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx, R.oab, R.otc ? 1 : 0].join(",");
+  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx, R.oab, R.otc ? 1 : 0, st.reclas ? 1 : 0].join(",");
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
@@ -1849,10 +1867,11 @@ function leerHash() {
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
   if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx", "oab", "otc"];
+    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx", "oab", "otc", "reclas"];
     cl.forEach((c, i) => {
       if (v[i] === undefined) return;
       if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope", "huella"].includes(v[i])) st.r.modo = v[i]; }
+      else if (c === "reclas") st.reclas = v[i] === "1";
       else if (["fuera", "on0", "on1", "on2", "on3", "op", "ofa", "ofp", "otc"].includes(c)) st.r[c] = v[i] === "1";
       else if (RV[c].includes(Number(v[i]))) st.r[c] = Number(v[i]);
     });
