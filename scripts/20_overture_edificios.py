@@ -62,7 +62,8 @@ TEMAS = {
     "edificios": ("buildings", "building",
                   "id, sources[1].dataset AS fuente, class AS clase, height AS altura, num_floors AS pisos"),
     "uso": ("base", "land_use", "id, subtype, class AS clase, surface, names.primary AS nombre"),
-    "cobertura": ("base", "land_cover", "id, subtype"),
+    # land_cover viene en dos generalizaciones superpuestas (zoom 0-7 y 8-15): solo la detallada
+    "cobertura": ("base", "land_cover", "id, subtype", "cartography.min_zoom >= 8"),
     "agua": ("base", "water", "id, subtype, class AS clase, is_intermittent AS intermitente, names.primary AS nombre"),
     "calles": ("transportation", "segment", "id, subtype, class AS clase, subclass, names.primary AS nombre"),
     # los aeropuertos no estan en land_use sino en infrastructure (subtype airport): predio,

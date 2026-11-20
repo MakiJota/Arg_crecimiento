@@ -20,3 +20,7 @@ Thumbs.db
 
 # pruebas: la cache de cada prueba se rehace sola
 pruebas/*/cache/
+
+# diagnostico de huellas (paso 22): tabla por radio y cache por ciudad, se regeneran con el script
+pruebas/diagnostico_huellas/radios.csv
+pruebas/diagnostico_huellas/ciudades/

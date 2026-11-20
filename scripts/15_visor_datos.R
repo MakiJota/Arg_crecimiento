@@ -25,6 +25,8 @@
 #   bordesa/b/c_<anio>.png  franja de 0 a 500 m, parches hasta 100 ha, distancia al borde y huecos
 #                       hasta 500 m (paso 18, version 2)
 #                       para la pestana Reglas; ver bordes_png. --solo-bordes rehace solo estos
+#   etiqa/etiqb.png     etiquetas de Overture por pixel (paso 21) para limpieza.html; ver
+#                       etiquetas_png. --solo-etiquetas rehace solo estos
 #   pedro_mb_<anio>.png las manchas GISD30 contra MapBiomas de Pedro (ag_43), por censo: R = b +
 #                       4 c + 16 k (ver pedro_mb). Lee ../plataforma/datos/<contorno>/manchas_*.js
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
@@ -160,6 +162,25 @@ bordes_png <- function(slug, x, plantilla, dir) {
 }
 
 
+etiquetas_png <- function(slug, plantilla, dir) {
+  # etiqa.png y etiqb.png para el visor de limpieza con Overture (paso 21, etiquetas.tif; no
+  # dependen del anio): etiqa R = % edificios, G = % calle, B = % agua; etiqb R = m al edificio
+  # mas cercano / 10 (tope 255 = 2550 m), G = banderas (1 protegida, 2 aeropuerto, 4 publico,
+  # 8 servicio, 16 cultivo), B = clase de cobertura de ESA WorldCover (ver 21_etiquetas.R)
+  f <- file.path(RPIPE, "outputs", "etiquetas", slug, "etiquetas.tif")
+  if (!file.exists(f)) return(FALSE)
+  e <- rast(f)
+  ra <- c(e$edif, e$calle, e$agua)
+  rb <- c(min(round(e$dedif / 10), 255), e$protegida + 2 * e$aeropuerto + 4 * e$publico + 8 * e$servicio + 16 * e$cultivo, e$cobertura)
+  for (n in c("a", "b")) {
+    r <- project(if (n == "a") ra else rb, plantilla, method = "near")
+    r <- ifel(is.na(r), 0, r)
+    png_rgb(r, file.path(dir, sprintf("etiq%s.png", n)), "PNG", gdal = "ZLEVEL=9")
+  }
+  TRUE
+}
+
+
 una <- function(slug) {
   t0 <- Sys.time()
   x <- cargar_densidad(RPIPE, slug)
@@ -228,6 +249,7 @@ una <- function(slug) {
 
   parches <- parches_png(slug, x, plantilla, dir)
   bordes <- bordes_png(slug, x, plantilla, dir)
+  etiquetas <- etiquetas_png(slug, plantilla, dir)
 
   # las manchas de Pedro para los cuatro censos (ver pedro_mb)
   pedro <- integer(0)
@@ -247,13 +269,28 @@ una <- function(slug) {
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
-       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches), bordes = I(bordes),
+       limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches), bordes = I(bordes), etiquetas = etiquetas,
        perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
 }
 
 
 dir.create(SAL, recursive = TRUE, showWarnings = FALSE)
 f_ind <- file.path(SAL, "indice.json")
+
+if ("--solo-etiquetas" %in% args) {
+  # solo etiqa/etiqb.png (paso 21); marca el indice
+  ind <- jsonlite::read_json(f_ind)
+  for (s in CIUDADES) {
+    x <- cargar_densidad(RPIPE, s)
+    plantilla <- project(x[["2020"]]$code, MERC, method = "near")
+    h <- etiquetas_png(s, plantilla, file.path(SAL, s))
+    for (k in seq_along(ind$ciudades)) if (ind$ciudades[[k]]$slug == s) ind$ciudades[[k]]$etiquetas <- h
+    cat(sprintf("  %-22s etiquetas %s
+", s, h))
+  }
+  jsonlite::write_json(ind, f_ind, auto_unbox = TRUE, digits = NA)
+  quit(save = "no")
+}
 
 if ("--solo-bordes" %in% args) {
   # solo los bordes<a|b>_<anio>.png (paso 18); marca el indice
