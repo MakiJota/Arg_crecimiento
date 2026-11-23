@@ -224,6 +224,9 @@ body.modo-reglas .solo-tests { display: none; }
         </div>
         <div id="rc-3"></div>
         <p class="ayuda" id="r3-ayuda" style="margin-top:-4px"></p></div>
+      <div class="regla" id="rb-aj"><h4>Save these settings</h4>
+        <div style="display:flex;gap:8px;margin-bottom:6px"><button class="ir" id="aj-json">Download settings (.json)</button><button class="ir" id="aj-cmd">Copy command for step 23</button></div>
+        <p class="ayuda" id="aj-nota" style="margin:0 0 6px">Saves every rule setting on this page. Step 23 applies them to all agglomerations: <code>Rscript Rpipe/scripts/23_corregido.R --config reglas.json</code></p></div>
       <div class="regla" id="rb-rc"><h4><label><input type="checkbox" id="reclas"><b>=</b>Reclassify the result</label></h4>
         <p class="ayuda" style="margin-top:0">After all the rules, show only <b>urbanized</b> land (built-up kept + every fill), the <b>fringe</b> (edge ring) and <b>captured open space</b> (open land inside the city that stays open). Everything removed or trimmed is not urban. The rules still run underneath; the panel on the right is unchanged.</p></div>
     </div>
@@ -1120,6 +1123,8 @@ function armarReglas() {
   $("r-fuera").onchange = e => { st.r.fuera = e.target.checked; rapido(); };
   for (const n of [0, 1, 2, 3]) $("on" + n).onchange = e => { st.r["on" + n] = e.target.checked; rapido(); };
   $("reclas").onchange = e => { st.reclas = e.target.checked; rapido(); };
+  $("aj-json").onclick = () => guardarAjustes(false);
+  $("aj-cmd").onclick = () => guardarAjustes(true);
   document.querySelectorAll("#r-etapa button").forEach(b => b.onclick = () => { st.etapa = Number(b.dataset.v); rapido(); });
   for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).onchange = e => { st.r[k] = e.target.checked; rapido(); };
   document.querySelectorAll("#r-modo button").forEach(b => b.onclick = () => { st.r.modo = b.dataset.v; rapido(); });
@@ -1944,9 +1949,22 @@ function pestana(p) {
   document.querySelectorAll("#m-pestanas button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
   document.querySelectorAll(".metodo").forEach(d => d.classList.toggle("on", d.id === "p-" + p));
 }
+// los parametros de las reglas como texto, en el orden de 23_corregido.R (--rg o --config)
+function rgTexto() { const R = st.r; return [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx, R.oab, R.otc ? 1 : 0, st.reclas ? 1 : 0, st.etapa].join(","); }
+function guardarAjustes(copiar) {
+  const rg = rgTexto(), cmd = `Rscript Rpipe/scripts/23_corregido.R --rg "${rg}"`;
+  if (copiar) { navigator.clipboard.writeText(cmd).then(() => { $("aj-nota").textContent = "Command copied. Paste it in a terminal at the repository root."; }); return; }
+  const fecha = new Date().toISOString().slice(0, 10);
+  const json = { rg, settings: st.r, reclassify: st.reclas, tested_on: { agglomeration: st.slug, year: st.anio }, saved: new Date().toISOString(),
+                 use: "Rscript Rpipe/scripts/23_corregido.R --config <this file>" };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }));
+  a.download = `reglas_${st.slug}_${fecha}.json`; a.click(); URL.revokeObjectURL(a.href);
+  $("aj-nota").textContent = `Saved ${a.download}. Put it in Rpipe/pruebas/corregido/ and run step 23 with --config.`;
+}
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
-  const R = st.r, rg = [R.D, R.p2, R.tam, R.gap, R.p2b, R.tamb, R.modo, R.p3, R.k, R.S, R.fuera ? 1 : 0, R.p2t, R.on1 ? 1 : 0, R.on2 ? 1 : 0, R.on3 ? 1 : 0, R.E, R.p3t, R.on0 ? 1 : 0, R.oa, R.op ? 1 : 0, R.oc, R.os, R.oct, R.oq, R.ofa ? 1 : 0, R.ofp ? 1 : 0, R.ofe, R.pf, R.sx, R.oab, R.otc ? 1 : 0, st.reclas ? 1 : 0, st.etapa].join(",");
+  const rg = rgTexto();
   history.replaceState(null, "", `#${st.m === "reg" ? "v=reglas&rg=" + rg + "&" : ""}m=${st.m === "reg" ? mPrevio : st.m}&c=${st.slug}&y=${st.anio}&t=${k}&p=${p}&f=${st.fondo}&l=${st.capa}&r=${st.relleno}&d=${st.dist}&rd=${st.rellDenso ? 1 : 0}&an=${st.anillo ? 1 : 0}&mb=${st.mbOn ? 1 : 0}&me=${st.mbEstilo}`);
 }
 function leerHash() {
