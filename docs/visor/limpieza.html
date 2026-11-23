@@ -226,6 +226,7 @@ body.modo-reglas .solo-tests { display: none; }
         <p class="ayuda" id="r3-ayuda" style="margin-top:-4px"></p></div>
       <div class="regla" id="rb-aj"><h4>Save these settings</h4>
         <div style="display:flex;gap:8px;margin-bottom:6px"><button class="ir" id="aj-json">Download settings (.json)</button><button class="ir" id="aj-cmd">Copy command for step 23</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:6px"><button class="ir" id="aj-cargar">Load settings (.json)</button><input type="file" id="aj-archivo" accept=".json,.txt,application/json,text/plain" hidden></div>
         <p class="ayuda" id="aj-nota" style="margin:0 0 6px">Saves every rule setting on this page. Step 23 applies them to all agglomerations: <code>Rscript Rpipe/scripts/23_corregido.R --config reglas.json</code></p></div>
       <div class="regla" id="rb-rc"><h4><label><input type="checkbox" id="reclas"><b>=</b>Reclassify the result</label></h4>
         <p class="ayuda" style="margin-top:0">After all the rules, show only <b>urbanized</b> land (built-up kept + every fill), the <b>fringe</b> (edge ring) and <b>captured open space</b> (open land inside the city that stays open). Everything removed or trimmed is not urban. The rules still run underneath; the panel on the right is unchanged.</p></div>
@@ -1125,6 +1126,20 @@ function armarReglas() {
   $("reclas").onchange = e => { st.reclas = e.target.checked; rapido(); };
   $("aj-json").onclick = () => guardarAjustes(false);
   $("aj-cmd").onclick = () => guardarAjustes(true);
+  $("aj-cargar").onclick = () => $("aj-archivo").click();
+  $("aj-archivo").onchange = async e => {
+    // un .json guardado con "Download settings" (campo rg) o un texto con el rg o con un enlace del visor
+    const f = e.target.files[0]; if (!f) return;
+    const txt = (await f.text()).trim();
+    let rg = null;
+    try { const j = JSON.parse(txt); rg = j.rg || null; } catch (_) {
+      const m = txt.match(/rg=([^&\s"]+)/); rg = m ? m[1] : (/^[\w.,-]+$/.test(txt) ? txt : null);
+    }
+    e.target.value = "";
+    if (!rg) { $("aj-nota").textContent = `Could not find the settings in ${f.name}.`; return; }
+    aplicarRg(rg); ponerReglasIzq(); await rapido();
+    $("aj-nota").textContent = `Loaded ${f.name}. Every rule now uses its settings.`;
+  };
   document.querySelectorAll("#r-etapa button").forEach(b => b.onclick = () => { st.etapa = Number(b.dataset.v); rapido(); });
   for (const k of ["op", "ofa", "ofp", "otc"]) $("r-" + k).onchange = e => { st.r[k] = e.target.checked; rapido(); };
   document.querySelectorAll("#r-modo button").forEach(b => b.onclick = () => { st.r.modo = b.dataset.v; rapido(); });
@@ -1962,6 +1977,18 @@ function guardarAjustes(copiar) {
   a.download = `reglas_${st.slug}_${fecha}.json`; a.click(); URL.revokeObjectURL(a.href);
   $("aj-nota").textContent = `Saved ${a.download}. Put it in Rpipe/pruebas/corregido/ and run step 23 with --config.`;
 }
+function aplicarRg(rg) {
+  // los parametros de las reglas desde el texto rg (enlace, archivo guardado o --rg del paso 23)
+  const v = decodeURIComponent(rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx", "oab", "otc", "reclas", "etapa"];
+  cl.forEach((c, i) => {
+    if (v[i] === undefined) return;
+    if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope", "huella"].includes(v[i])) st.r.modo = v[i]; }
+    else if (c === "reclas") st.reclas = v[i] === "1";
+    else if (c === "etapa") { if (/^[0-4]$/.test(v[i])) st.etapa = Number(v[i]); }
+    else if (["fuera", "on0", "on1", "on2", "on3", "op", "ofa", "ofp", "otc"].includes(c)) st.r[c] = v[i] === "1";
+    else if (RV[c].includes(Number(v[i]))) st.r[c] = Number(v[i]);
+  });
+}
 function guardarHash() {
   const k = isFinite(st.corte) ? st.corte : "inf", p = isFinite(st.pct) ? st.pct : "inf";
   const rg = rgTexto();
@@ -1984,17 +2011,7 @@ function leerHash() {
   if (["100", "200", "400"].includes(h.d)) st.dist = Number(h.d);
   if (h.rd) st.rellDenso = h.rd === "1";
   if (h.an) st.anillo = h.an === "1";
-  if (h.rg) {
-    const v = decodeURIComponent(h.rg).split(","), cl = ["D", "p2", "tam", "gap", "p2b", "tamb", "modo", "p3", "k", "S", "fuera", "p2t", "on1", "on2", "on3", "E", "p3t", "on0", "oa", "op", "oc", "os", "oct", "oq", "ofa", "ofp", "ofe", "pf", "sx", "oab", "otc", "reclas", "etapa"];
-    cl.forEach((c, i) => {
-      if (v[i] === undefined) return;
-      if (c === "modo") { if (v[i] === "no") st.r.on3 = false; else if (["piso", "tope", "huella"].includes(v[i])) st.r.modo = v[i]; }
-      else if (c === "reclas") st.reclas = v[i] === "1";
-      else if (c === "etapa") { if (/^[0-4]$/.test(v[i])) st.etapa = Number(v[i]); }
-      else if (["fuera", "on0", "on1", "on2", "on3", "op", "ofa", "ofp", "otc"].includes(c)) st.r[c] = v[i] === "1";
-      else if (RV[c].includes(Number(v[i]))) st.r[c] = Number(v[i]);
-    });
-  }
+  if (h.rg) aplicarRg(h.rg);
 }
 
 const vistaInicial = (location.hash.match(/v=(metodos|resultados|reglas)/) || [])[1] || (/(^|[#&])m=/.test(location.hash) ? undefined : "reglas");
