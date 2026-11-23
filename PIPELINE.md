@@ -55,6 +55,7 @@ with `fetch`, so locally it needs a server, not a double click:
 | 20 | `scripts/20_overture_edificios.py` | Overture buildings, land use, land cover, water, roads and airports per city box | no |
 | 21 | `scripts/21_etiquetas.R` | Overture tags per 30 m pixel (buildings, roads, water, protected, airports, public space, farmland, ESA land cover) | no |
 | 22 | `scripts/22_diagnostico_huellas.R` | Diagnosis: footprints, built-up pixels, population and dwellings per 2022 tract, all agglomerations | no |
+| 23 | `scripts/23_corregido.R` | Corrected built-up: rules 0-3 in sequence on the 30 m grid | no |
 | 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11, 16, 17 and 02 | yes, in `docs/` |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 
