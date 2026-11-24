@@ -56,6 +56,7 @@ with `fetch`, so locally it needs a server, not a double click:
 | 21 | `scripts/21_etiquetas.R` | Overture tags per 30 m pixel (buildings, roads, water, protected, airports, public space, farmland, ESA land cover) | no |
 | 22 | `scripts/22_diagnostico_huellas.R` | Diagnosis: footprints, built-up pixels, population and dwellings per 2022 tract, all agglomerations | no |
 | 23 | `scripts/23_corregido.R` | Corrected built-up: rules 0-3 in sequence on the 30 m grid | no |
+| 24 | `scripts/24_extension_revisada.R` | Revised perimeters (`raw/boundaries/aglomerados_revisados.gpkg`, rows `<slug>_rev` of `cajas.md`); their viewer data go to `docs/visor/datos_rev/` with `15_visor_datos.R --revisados`, read by `docs/visor/extension.html` | yes (gpkg) |
 | 15 | `scripts/15_visor_datos.R` | data of the density-test viewer (`docs/visor/datos/`), from 11, 16, 17 and 02 | yes, in `docs/` |
 | — | `scripts/lib/cajas.R`, `cajas.md` | the box and perimeter of each city | yes |
 

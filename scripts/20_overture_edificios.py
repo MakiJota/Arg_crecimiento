@@ -50,6 +50,13 @@ def cajas():
     return filas
 
 
+def revisados():
+    # slugs de cajas.md cuyo origen es un perimetro revisado (paso 24)
+    return {c[0].strip() for c in (l.strip().strip("|").split("|") for l in
+            (RPIPE / "cajas.md").read_text(encoding="utf-8").splitlines() if l.startswith("| "))
+            if len(c) > 6 and "revisado" in c[6]}
+
+
 def ultima_release():
     cat = json.load(urllib.request.urlopen(STAC, timeout=60))
     for l in cat["links"]:
@@ -81,7 +88,8 @@ def main():
     ap.add_argument("--temas", default="edificios")
     a = ap.parse_args()
     C = cajas()
-    ciudades = a.ciudades.split(",") if a.ciudades else sorted(C)
+    # sin --ciudades quedan afuera los perimetros revisados (paso 24): se corren nombrandolos
+    ciudades = a.ciudades.split(",") if a.ciudades else sorted(s for s in C if s not in revisados())
     rel = a.release or ultima_release()
     SAL.mkdir(parents=True, exist_ok=True)
     (SAL / "release.txt").write_text(rel + "\n", encoding="utf-8")

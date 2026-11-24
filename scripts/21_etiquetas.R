@@ -40,7 +40,8 @@ i <- match("--ciudades", args)
 DENS <- file.path(RPIPE, "outputs", "densidad")
 OVT <- file.path(RPIPE, "outputs", "overture")
 SAL <- file.path(RPIPE, "outputs", "etiquetas")
-CIUDADES <- if (is.na(i)) sort(list.dirs(DENS, full.names = FALSE, recursive = FALSE)) else strsplit(args[i + 1], ",")[[1]]
+source(file.path(RPIPE, "scripts", "lib", "cajas.R"))   # revisados(): perimetros del paso 24
+CIUDADES <- if (is.na(i)) setdiff(sort(list.dirs(DENS, full.names = FALSE, recursive = FALSE)), revisados(RPIPE)) else strsplit(args[i + 1], ",")[[1]]
 REHACER <- "--rehacer" %in% args
 terraOptions(progress = 0, memfrac = 0.6)
 

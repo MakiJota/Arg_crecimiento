@@ -46,7 +46,8 @@ source(file.path(SCRIPTS, "lib", "pruebas.R"))
 suppressPackageStartupMessages(library(data.table))
 
 args <- commandArgs(trailingOnly = TRUE)
-TODAS <- sort(basename(list.dirs(file.path(RPIPE, "outputs", "densidad"), recursive = FALSE)))
+TODAS <- setdiff(sort(basename(list.dirs(file.path(RPIPE, "outputs", "densidad"), recursive = FALSE))),
+                 revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 i <- match("--ciudades", args)
 CIUDADES <- if (is.na(i)) TODAS else strsplit(args[i + 1], ",")[[1]]
 CIUDADES <- c(setdiff(CIUDADES, "buenos_aires"), intersect(CIUDADES, "buenos_aires"))  # BA al final

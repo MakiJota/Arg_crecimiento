@@ -45,7 +45,8 @@ DENS <- file.path(RPIPE, "outputs", "densidad")
 SAL <- file.path(RPIPE, "outputs", "mapbiomas")
 REGLAS <- file.path(RPIPE, "outputs", "reglas")
 CIUDADES <- if (is.na(match("--ciudades", args))) {
-  sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
+  setdiff(sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE)))),
+          revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 } else strsplit(arg("--ciudades", ""), ",")[[1]]
 MB_URL <- "/vsicurl/https://data.source.coop/tristangruppwri/mapbiomas/mapbiomas-argentina/mapbiomas_argentina_%d/mapbiomas_argentina_%d.tif"
 ANIO <- 2020
@@ -166,6 +167,7 @@ f_res <- file.path(BASE, "resumen.csv")
 if (file.exists(f_res) && !is.na(match("--ciudades", args))) {
   prev <- read.csv(f_res); res <- rbind(prev[!prev$slug %in% res$slug, names(res)], res); res <- res[order(res$nombre), ]
 }
+res <- res[!res$slug %in% revisados(RPIPE), ]   # los perimetros revisados (24) no entran al resumen
 write.csv(res, f_res, row.names = FALSE)
 
 img <- file.path(BASE, "img"); dir.create(img, showWarnings = FALSE)

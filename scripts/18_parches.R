@@ -41,7 +41,8 @@ REHACER <- "--rehacer" %in% args
 DENS <- file.path(RPIPE, "outputs", "densidad")
 REGLAS <- file.path(RPIPE, "outputs", "reglas")
 SAL <- file.path(RPIPE, "outputs", "parches")
-TODAS <- sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
+TODAS <- setdiff(sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE)))),
+                 revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 CIUDADES <- if (is.na(match("--ciudades", args))) TODAS else strsplit(arg("--ciudades", ""), ",")[[1]]
 D_OPC <- c(100, 200, 400)
 CORTES_HA <- c(0.5, 1, 2, 5, 20)

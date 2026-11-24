@@ -32,9 +32,11 @@
 # ENTRADAS  outputs/densidad/<slug>/ (11), outputs/reglas/<slug>/ (16, opcional),
 #           outputs/mapbiomas/<slug>/mapbiomas_2020.tif (17, opcional),
 #           outputs/landsat/<slug>/landsat_<anio>.tif (02)
-# SALIDAS   docs/visor/datos/
+# SALIDAS   docs/visor/datos/ (o docs/visor/datos_rev/ con --revisados: perimetros del paso 24,
+#           con el perimetro del proyecto al que reemplazan en perimetro_proyecto)
 #
 # Uso: Rscript Rpipe/scripts/15_visor_datos.R [--ciudades salta,jujuy]
+#      Rscript Rpipe/scripts/15_visor_datos.R --revisados [--ciudades salta_rev]
 
 Sys.setenv(PROJ_LIB = system.file("proj", package = "terra"),
            PROJ_DATA = system.file("proj", package = "terra"),
@@ -55,8 +57,17 @@ DENS <- file.path(RPIPE, "outputs", "densidad")
 LANDSAT <- file.path(RPIPE, "outputs", "landsat")
 REGLAS <- file.path(RPIPE, "outputs", "reglas")
 SAL <- file.path(RPIPE, "docs", "visor", "datos")
-TODAS <- sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
+TODAS <- setdiff(sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE)))),
+                 revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 CIUDADES <- if (is.na(match("--ciudades", args))) TODAS else strsplit(arg("--ciudades", ""), ",")[[1]]
+# --revisados: los perimetros revisados del paso 24, en su propia carpeta (docs/visor/datos_rev/,
+# la lee extension.html); sin --ciudades, todos ellos. Los visores de los 31 aglomerados no los ven.
+REV <- "--revisados" %in% args
+if (REV) {
+  SAL <- file.path(RPIPE, "docs", "visor", "datos_rev")
+  if (is.na(match("--ciudades", args))) CIUDADES <- revisados(RPIPE)
+} else if (length(intersect(CIUDADES, revisados(RPIPE))))
+  stop("perimetro revisado en --ciudades: va con --revisados, a docs/visor/datos_rev/", call. = FALSE)
 MERC <- "EPSG:3857"
 
 
@@ -265,12 +276,20 @@ una <- function(slug) {
   esq <- crds(esq)
   cont <- simplifyGeom(contorno_de(RPIPE, slug), tolerance = 0.0005)
   tmp <- tempfile(fileext = ".geojson"); writeVector(cont[, 0], tmp, filetype = "GeoJSON")
+  # perimetro revisado (paso 24): tambien el perimetro de analisis del proyecto al que reemplaza
+  previo <- NULL
+  if (REV && !is.null(cont$reemplaza) && nzchar(cont$reemplaza[1])) {
+    pv <- terra::vect(file.path(RPIPE, "raw", "boundaries", "aglomerados.gpkg"), layer = "perimetro")
+    pv <- simplifyGeom(pv[pv$slug == cont$reemplaza[1], 0], tolerance = 0.0005)
+    tp <- tempfile(fileext = ".geojson"); writeVector(pv, tp, filetype = "GeoJSON")
+    previo <- jsonlite::fromJSON(tp, simplifyVector = FALSE); unlink(tp)
+  }
   cat(sprintf("  %-22s %s x %s px, landsat %s (%.1f min)\n", slug, ncol(plantilla), nrow(plantilla),
               if (length(landsat)) paste(landsat, collapse = ",") else "no",
               as.numeric(difftime(Sys.time(), t0, units = "mins"))))
   list(slug = slug, nombre = x$nombre, ancho = ncol(plantilla), alto = nrow(plantilla),
        limites = list(c(esq[1, 2], esq[1, 1]), c(esq[2, 2], esq[2, 1])), landsat = I(landsat), mapbiomas = mapbiomas, pedro_mb = I(pedro), parches = I(parches), bordes = I(bordes), etiquetas = etiquetas,
-       perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE))
+       perimetro = jsonlite::fromJSON(tmp, simplifyVector = FALSE), perimetro_proyecto = previo)
 }
 
 

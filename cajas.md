@@ -51,3 +51,4 @@ Tandil no es un aglomerado EPH: no tiene contorno ni radios en el proyecto.
 | tucuman | gran_tucuman__tafi_viejo | -27.2052 | -65.8582 | -26.5490 | -64.7727 | caja propia (Jonathan) |  |
 | ushuaia | ushuaia__rio_grande | -54.9409 | -68.5534 | -53.6286 | -67.4932 | perimetro + 10 km | 3 |
 | viedma | viedma__carmen_de_patagones | -40.9386 | -63.1547 | -40.6795 | -62.8298 | perimetro + 10 km | 2 |
+| salta_rev | salta_rev | -25.6316 | -65.9069 | -24.3346 | -64.6664 | perimetro revisado + 10 km | 2 |

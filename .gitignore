@@ -24,3 +24,6 @@ pruebas/*/cache/
 # diagnostico de huellas (paso 22): tabla por radio y cache por ciudad, se regeneran con el script
 pruebas/diagnostico_huellas/radios.csv
 pruebas/diagnostico_huellas/ciudades/
+
+# perimetros revisados (paso 24): sus reportes por ciudad son exploratorios y no se suben
+pruebas/*/*_rev/

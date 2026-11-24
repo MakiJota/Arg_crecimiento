@@ -52,7 +52,7 @@ DENS <- file.path(RPIPE, "outputs", "densidad")
 ETQ <- file.path(RPIPE, "outputs", "etiquetas")
 SAL <- file.path(RPIPE, "outputs", "corregido")
 REP <- file.path(RPIPE, "pruebas", "corregido")
-TODAS <- sort(list.dirs(DENS, full.names = FALSE, recursive = FALSE))
+TODAS <- setdiff(sort(list.dirs(DENS, full.names = FALSE, recursive = FALSE)), revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 CIUDADES <- if (is.na(match("--ciudades", args))) TODAS else strsplit(arg("--ciudades", ""), ",")[[1]]
 MIN_CIUDAD <- 0.10
 PX_KM2 <- 0.0009

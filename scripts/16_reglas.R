@@ -73,7 +73,8 @@ BASE <- file.path(RPIPE, "pruebas", "reglas")
 DENS <- file.path(RPIPE, "outputs", "densidad")
 SAL <- file.path(RPIPE, "outputs", "reglas")
 CIUDADES <- if (is.na(match("--ciudades", args))) {
-  sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE))))
+  setdiff(sort(basename(dirname(list.files(DENS, "^ciudad\\.csv$", recursive = TRUE, full.names = TRUE)))),
+          revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 } else strsplit(arg("--ciudades", ""), ",")[[1]]
 
 PCTS <- c(10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90)
@@ -421,6 +422,7 @@ f_res <- file.path(BASE, "resumen.csv")
 if (file.exists(f_res) && !is.na(match("--ciudades", args))) {   # una corrida parcial no pisa las demas
   prev <- read.csv(f_res); res <- rbind(prev[!prev$slug %in% res$slug, names(res)], res); res <- res[order(res$nombre), ]
 }
+res <- res[!res$slug %in% revisados(RPIPE), ]   # los perimetros revisados (24) no entran al resumen
 write.csv(res, f_res, row.names = FALSE)
 
 img <- file.path(BASE, "img"); dir.create(img, showWarnings = FALSE)

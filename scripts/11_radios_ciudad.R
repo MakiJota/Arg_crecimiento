@@ -56,7 +56,8 @@ MARGEN <- 3000   # metros alrededor de la ciudad de 2020
 
 cj_todas <- leer_cajas(RPIPE)
 CIUDADES <- if (is.na(match("--ciudades", args))) {
-  cj_todas$slug[nzchar(cj_todas$contorno) & file.exists(file.path(ANGEL, cj_todas$slug, "angel_2020.tif"))]
+  setdiff(cj_todas$slug[nzchar(cj_todas$contorno) & file.exists(file.path(ANGEL, cj_todas$slug, "angel_2020.tif"))],
+          revisados(RPIPE))   # sin los perimetros revisados (paso 24), que se corren nombrandolos
 } else strsplit(arg("--ciudades", ""), ",")[[1]]
 if (!file.exists(GPKG)) stop("no esta ", GPKG, ": correr antes 09_censos_radios.R", call. = FALSE)
 
