@@ -10,6 +10,12 @@ collections:
   extension:
     permalink: "/:collection/:path/"
     output: true
+defaults:
+  - scope:
+      path: ""
+      type: extension
+    values:
+      layout: default
 just_the_docs:
   collections:
     extension:
