@@ -1,0 +1,33 @@
+"slug","nombre","anio","d","urbano_cuadrado_km2","urbano_eph_km2","urbano_ciudad_km2","urbano_los_dos_km2","urbano_solo_ciudad_km2","urbano_solo_eph_km2","share_cuadrado_en_eph","share_cuadrado_en_ciudad"
+"bahia_blanca__cerri","Bahía Blanca - Cerri",2022,1550,143.9,113.5,140.6,113.5,27.1,0,0.789,0.977
+"comodoro_rivadavia__rada_tilly","Comodoro Rivadavia - Rada Tilly",2022,430,82.9,74.4,79.8,73.8,6,0.5,0.897,0.962
+"concordia","Concordia",2022,1250,55.3,38.9,49.1,38.9,10.2,0,0.703,0.888
+"corrientes","Corrientes",2022,1300,247.7,76.1,96.1,76.1,20,0.1,0.307,0.388
+"formosa","Formosa",2022,2000,71.7,63.6,68.9,62.8,6.1,0.7,0.886,0.961
+"gran_buenos_aires","Gran Buenos Aires",2022,430,2113.4,2096.6,2067.2,2060.1,7.2,36.5,0.992,0.978
+"gran_buenos_aires_100km","Gran Buenos Aires (100km)",2022,600,2584.9,2343.9,2472.9,2316.9,156,27,0.907,0.957
+"gran_catamarca","Gran Catamarca",2022,650,98.3,74.8,75.4,72.2,3.2,2.7,0.761,0.767
+"gran_cordoba","Gran Córdoba",2022,700,607.8,378.3,559.3,377,182.3,1.3,0.622,0.92
+"gran_la_plata","Gran La Plata",2022,1000,691.8,308.8,663,306.6,356.4,2.2,0.446,0.958
+"gran_mendoza","Gran Mendoza",2022,410,417.4,298,339,285.4,53.7,12.6,0.714,0.812
+"gran_parana","Gran Paraná",2022,550,287.4,82.4,86.9,81.9,5,0.5,0.287,0.302
+"gran_resistencia","Gran Resistencia",2022,370,232.7,105.2,109.6,102.4,7.2,2.8,0.452,0.471
+"gran_rosario","Gran Rosario",2022,550,349.7,282.1,319.4,279.9,39.5,2.2,0.807,0.913
+"gran_san_juan","Gran San Juan",2022,700,256.9,179,187.6,174.5,13.2,4.5,0.697,0.73
+"gran_santa_fe","Gran Santa Fe",2022,1500,288.3,140.5,181.1,140.2,40.8,0.3,0.487,0.628
+"gran_tucuman__tafi_viejo","Gran Tucumán - Tafí Viejo",2022,380,273,181.3,192.7,178.2,14.5,3.1,0.664,0.706
+"jujuy__palpala","Jujuy - Palpalá",2022,800,107,69.7,75.3,68.4,6.9,1.2,0.651,0.704
+"la_rioja","La Rioja",2022,1700,57.8,56.9,57.1,56.9,0.2,0,0.985,0.988
+"mar_del_plata__batan","Mar del Plata - Batán",2022,700,209.8,152.7,156.7,150.7,6,2,0.728,0.747
+"neuquen__plottier","Neuquén - Plottier",2022,500,223.5,160.2,176,153.2,22.8,7,0.717,0.788
+"posadas","Posadas",2022,650,114.9,85.5,91.7,85.4,6.3,0,0.744,0.798
+"rawson__trelew","Rawson - Trelew",2022,950,55.4,44.6,55.3,44.6,10.7,0.1,0.806,0.999
+"rio_cuarto","Río Cuarto",2022,550,69.4,54.1,57.6,53.5,4.1,0.5,0.779,0.83
+"rio_gallegos","Río Gallegos",2022,250,36.1,30.3,34.3,30,4.3,0.3,0.841,0.951
+"salta","Salta",2022,800,193,150.8,175.8,148.2,27.6,2.6,0.781,0.911
+"san_luis__el_chorrillo","San Luis - El Chorrillo",2022,800,67,54.8,62.2,54.8,7.4,0,0.819,0.93
+"san_nicolas__villa_constitucion","San Nicolás - Villa Constitución",2022,800,130.7,53.7,64.5,53.4,11.1,0.4,0.411,0.493
+"santa_rosa__toay","Santa Rosa - Toay",2022,1900,52.5,48.4,49.5,48.4,1.1,0,0.924,0.944
+"santiago_del_estero__la_banda","Santiago del Estero - La Banda",2022,700,174.1,121.2,137.4,119.3,18.1,1.8,0.696,0.789
+"ushuaia__rio_grande","Ushuaia - Río Grande",2022,700,16.4,14.7,16.2,14.7,1.5,0,0.9,0.989
+"viedma__carmen_de_patagones","Viedma - Carmen de Patagones",2022,290,31.1,22,24.9,21.8,3.1,0.3,0.708,0.801

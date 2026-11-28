@@ -24,6 +24,11 @@ SALIDAS  outputs/overture/<slug>/<tema>.gpkg (capa con el nombre del tema) y
 
 Uso: python Rpipe/scripts/20_overture_edificios.py [--ciudades salta,rosario] [--release 2026-11-18.0]
          [--temas edificios,uso,cobertura,agua,calles]
+
+Cajas que no son de cajas.md (paso 29, cuadrados alrededor de cada aglomerado): --cajas-csv con
+columnas slug,lat0,lon0,lat1,lon1 reemplaza a cajas.md, y --salida cambia la carpeta (por
+defecto outputs/overture). Ej.: --cajas-csv outputs/od_aglomerados/cajas.csv
+--salida outputs/overture_od --temas calles
 """
 import argparse
 import json
@@ -86,10 +91,22 @@ def main():
     ap.add_argument("--release", default="")
     ap.add_argument("--rehacer", action="store_true")
     ap.add_argument("--temas", default="edificios")
+    ap.add_argument("--cajas-csv", default="")
+    ap.add_argument("--salida", default="")
     a = ap.parse_args()
-    C = cajas()
+    global SAL
+    if a.salida:
+        SAL = Path(a.salida).resolve()
+    if a.cajas_csv:
+        import csv
+        with open(a.cajas_csv, encoding="utf-8") as fh:
+            C = {r["slug"]: tuple(float(r[k]) for k in ("lat0", "lon0", "lat1", "lon1"))
+                 for r in csv.DictReader(fh)}
+    else:
+        C = cajas()
     # sin --ciudades quedan afuera los perimetros revisados (paso 24): se corren nombrandolos
-    ciudades = a.ciudades.split(",") if a.ciudades else sorted(s for s in C if s not in revisados())
+    ciudades = (a.ciudades.split(",") if a.ciudades else
+                sorted(C) if a.cajas_csv else sorted(s for s in C if s not in revisados()))
     rel = a.release or ultima_release()
     SAL.mkdir(parents=True, exist_ok=True)
     (SAL / "release.txt").write_text(rel + "\n", encoding="utf-8")
